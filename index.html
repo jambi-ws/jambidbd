@@ -1,5 +1,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
 <style>
+  html, body{ margin:0; padding:0; }
+  body{ background:var(--bg); }
   :root{
     --bg:#050a12;
     --panel:#0b1526;
@@ -38,7 +40,7 @@
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
     z-index:0;
   }
-  .dbd-wrap{ max-width:980px; margin:0 auto; padding:28px 18px 60px; position:relative; z-index:1;}
+  .dbd-wrap{ max-width:1180px; margin:0 auto; padding:28px 22px 60px; position:relative; z-index:1;}
 
   .dbd-header{ display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:18px; margin-bottom:22px;}
   .dbd-title{ font-family:'Noto Sans KR',sans-serif; font-weight:800; font-size:25px; color:var(--bone); margin:0;}
@@ -88,8 +90,12 @@
   .mono{ font-weight:700; color:var(--bone); }
   .win{ color:var(--good); font-weight:700;} .lose{ color:var(--bad); font-weight:700;} .draw{ color:var(--draw); font-weight:700;}
   .perk-tag{ display:inline-block; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; padding:2px 7px; font-size:11px; margin:1px 3px 1px 0; color:var(--bone);}
+  .perk-picker{ background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:10px; }
+  .perk-picker .perk-tag[data-perk-add]{ transition:border-color .12s; }
+  .perk-picker .perk-tag[data-perk-add]:hover{ border-color:var(--entity); }
 
   .player-cell{ display:flex; align-items:center; gap:9px; }
+  .player-cell span{ white-space:nowrap; }
   .avatar{ border-radius:50%; object-fit:cover; flex-shrink:0; border:1px solid var(--line); display:block; }
   .avatar-fallback{ border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-weight:700; }
   .avatar.square, .avatar-fallback.square{ border-radius:6px; }
@@ -124,7 +130,7 @@
   .freq-list{ display:flex; flex-direction:column; gap:6px; }
   .freq-row{ display:flex; align-items:center; gap:8px; justify-content:space-between; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; padding:7px 11px; font-size:12.5px;}
   .freq-row .freq-left{ display:flex; align-items:center; gap:8px; }
-  .roster-chip{ display:flex; align-items:center; gap:7px; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:4px 10px 4px 4px; }
+  .roster-chip{ display:flex; align-items:center; gap:7px; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:4px 10px 4px 4px; white-space:nowrap; }
   .dbd-toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); color:var(--bone); padding:10px 16px; border-radius:6px; font-size:12.5px; opacity:0; pointer-events:none; transition:opacity .25s; z-index:9999; }
   .dbd-toast.error{ border-color:var(--bad); color:#f6c7c3; }
   @media (max-width:520px){ .dbd-title{ font-size:20px; } }
@@ -166,6 +172,10 @@
     searchKiller:'',
     searchSurvivor:'',
     searchBalance:'',
+    perkSelections:{},
+    perkSearches:{},
+    editingRoundId:null,
+    searchRounds:'',
   };
 
   function root(){ return document.getElementById('dbd-root'); }
@@ -374,6 +384,28 @@
     return avatarBlock(entry?entry.avatar:null, name, size, '', 'square');
   }
 
+  // ---------- perk picker (searchable, used by killer/survivor/round forms) ----------
+  function getPerkSelection(slotKey){
+    if(!ui.perkSelections[slotKey]) ui.perkSelections[slotKey] = [];
+    return ui.perkSelections[slotKey];
+  }
+  function getPerkSearch(slotKey){ return ui.perkSearches[slotKey] || ''; }
+  function perkPickerHtml(slotKey, kind){
+    const selected = getPerkSelection(slotKey);
+    const query = getPerkSearch(slotKey);
+    const roster = kind==='killer' ? store.killerPerks : store.survivorPerks;
+    const candidates = roster.filter(p=> matchesSearch(p.name, query) && !selected.includes(p.name));
+    return `<div class="perk-picker">
+      <div class="row" style="gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+        ${selected.length ? selected.map(name=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(name,kind,15)}${esc(name)}<a data-perk-remove="${slotKey}|${esc(name)}" style="cursor:pointer; margin-left:2px; color:var(--bad); font-weight:700;">×</a></span>`).join('') : `<span class="muted">선택된 퍽 없음 (최대 4개)</span>`}
+      </div>
+      <input type="text" class="search-box" id="perk-search-${slotKey}" placeholder="퍽 검색 (띄어쓰기 무관)" value="${esc(query)}" style="max-width:240px;">
+      <div class="row" style="gap:5px; flex-wrap:wrap; margin-top:8px; max-height:120px; overflow-y:auto;">
+        ${candidates.length ? candidates.slice(0,40).map(p=>`<span class="perk-tag" data-perk-add="${slotKey}|${esc(p.name)}|${kind}" style="cursor:pointer; display:inline-flex; align-items:center; gap:4px;">${avatarBlock(p.avatar,p.name,15,'','square')}${esc(p.name)}</span>`).join('') : `<span class="muted">검색 결과 없음</span>`}
+      </div>
+    </div>`;
+  }
+
   // ---------- stats ----------
   function killerStatsFor(name){
     const ms = store.killerMatches.filter(m=>m.player===name);
@@ -469,7 +501,7 @@
   }
 
   function tabsHtml(){
-    const tabs = [['ranking','랭킹'],['balance','맞밸런스'],['killer','킬러 기록'],['survivor','생존자 기록']];
+    const tabs = [['ranking','랭킹'],['balance','맞밸런스'],['rounds','라운드 기록'],['killer','킬러 기록'],['survivor','생존자 기록']];
     if(ui.isAdmin) tabs.push(['admin','관리']);
     return `<div class="tabs">${tabs.map(([id,label])=>`<div class="tab ${ui.tab===id?'active':''}" data-tab="${id}">${label}</div>`).join('')}</div>`;
   }
@@ -479,6 +511,7 @@
     switch(ui.tab){
       case 'ranking': return rankingHtml();
       case 'balance': return balanceHtml();
+      case 'rounds': return roundsHtml();
       case 'killer': return roleHtml('killer');
       case 'survivor': return roleHtml('survivor');
       case 'admin': return ui.isAdmin ? adminHtml() : rankingHtml();
@@ -644,6 +677,134 @@
     </div>`;
   }
 
+  function getRounds(){
+    const map = {};
+    store.killerMatches.forEach(m=>{
+      if(!m.roundId) return;
+      if(!map[m.roundId]) map[m.roundId] = { roundId:m.roundId, date:m.date, killer:null, survivors:[] };
+      map[m.roundId].killer = m;
+      if(m.date) map[m.roundId].date = m.date;
+    });
+    store.survivorMatches.forEach(m=>{
+      if(!m.roundId) return;
+      if(!map[m.roundId]) map[m.roundId] = { roundId:m.roundId, date:m.date, killer:null, survivors:[] };
+      map[m.roundId].survivors.push(m);
+      if(!map[m.roundId].date && m.date) map[m.roundId].date = m.date;
+    });
+    return Object.values(map).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  }
+
+  function roundMatchesSearch(round, query){
+    if(!query) return true;
+    const names = [];
+    if(round.killer) names.push(round.killer.player);
+    round.survivors.forEach(s=> names.push(s.player));
+    return names.some(n=> matchesSearch(n, query));
+  }
+
+  function roundCardHtml(round){
+    const kResultLabels = resultLabelsFor(true);
+    const sResultLabels = resultLabelsFor(false);
+    const killerRow = round.killer ? `
+      <div class="row" style="justify-content:space-between; align-items:center; gap:10px; background:var(--killer-dim); border:1px solid var(--killer); border-radius:4px; padding:8px 12px;">
+        <div class="row" style="gap:10px;">
+          <span class="muted" style="font-size:11px;">킬러</span>
+          ${playerCellHtml(round.killer.player, 24, true)}
+          <span class="player-cell">${killerAvatarHtml(round.killer.killer,20)}<span>${esc(round.killer.killer||'-')}</span></span>
+          <span class="mono">${round.killer.kills!=null? round.killer.kills+'킬':'-'}</span>
+        </div>
+        <div class="row" style="gap:8px; align-items:center;">
+          ${(round.killer.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'killer',13)}${esc(p)}</span>`).join('')}
+          <span class="${round.killer.result==='win'?'win':round.killer.result==='draw'?'draw':'lose'}">${kResultLabels[round.killer.result]||kResultLabels.lose}</span>
+        </div>
+      </div>` : `<div class="muted" style="padding:6px 0;">킬러 기록 없음</div>`;
+    const survRows = round.survivors.map(s=>`
+      <div class="row" style="justify-content:space-between; align-items:center; gap:10px; background:var(--surv-dim); border:1px solid var(--surv); border-radius:4px; padding:8px 12px; margin-top:6px;">
+        <div class="row" style="gap:10px;">
+          <span class="muted" style="font-size:11px;">생존자</span>
+          ${playerCellHtml(s.player, 24, true)}
+        </div>
+        <div class="row" style="gap:8px; align-items:center;">
+          ${(s.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'survivor',13)}${esc(p)}</span>`).join('')}
+          <span class="${s.result==='win'?'win':s.result==='draw'?'draw':'lose'}">${sResultLabels[s.result]||sResultLabels.lose}</span>
+        </div>
+      </div>`).join('');
+    return `<div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:8px;">
+        <span class="mono">${esc(round.date||'')}</span>
+        ${ui.isAdmin? `<div class="row" style="gap:6px;">
+          <button class="btn btn-sm" data-edit-round="${round.roundId}">수정</button>
+          <button class="btn btn-sm btn-danger" data-del-round="${round.roundId}">삭제</button>
+        </div>` : ''}
+      </div>
+      ${killerRow}
+      ${survRows || `<div class="muted" style="padding:6px 0;">생존자 기록 없음</div>`}
+    </div>`;
+  }
+
+  function roundSlotFormHtml(slotKey, label, opts){
+    const isKillerSlot = slotKey==='round-killer';
+    const val = opts || {};
+    return `<div class="card" style="background:var(--panel-2);">
+      <h3 style="font-size:13px;">${label}</h3>
+      <div class="form-grid">
+        <div><label>플레이어</label><input list="dbd-players-list-${slotKey}" name="${slotKey}-player" type="text" value="${esc(val.player||'')}">${datalist('dbd-players-list-'+slotKey, [], store.players)}</div>
+        ${isKillerSlot? `<div><label>킬러</label><input list="dbd-role-list-${slotKey}" name="${slotKey}-killer" type="text" value="${esc(val.killer||'')}">${datalist('dbd-role-list-'+slotKey, (store.killers||[]).map(k=>k.name), [])}</div>
+        <div><label>킬 수</label><select name="${slotKey}-kills">${[0,1,2,3,4].map(n=>`<option value="${n}" ${val.kills===n?'selected':(val.kills==null&&n===0?'selected':'')}>${n}킬</option>`).join('')}</select></div>` : ''}
+        <div><label>결과</label>
+          <div class="radio-row">
+            ${isKillerSlot ? `
+              <label><input type="radio" name="${slotKey}-result" value="win" ${!val.result||val.result==='win'?'checked':''}> 승리</label>
+              <label><input type="radio" name="${slotKey}-result" value="draw" ${val.result==='draw'?'checked':''}> 무</label>
+              <label><input type="radio" name="${slotKey}-result" value="lose" ${val.result==='lose'?'checked':''}> 패배</label>
+            ` : `
+              <label><input type="radio" name="${slotKey}-result" value="win" ${!val.result||val.result==='win'?'checked':''}> 탈출</label>
+              <label><input type="radio" name="${slotKey}-result" value="draw" ${val.result==='draw'?'checked':''}> 무</label>
+              <label><input type="radio" name="${slotKey}-result" value="lose" ${val.result==='lose'?'checked':''}> 패배</label>
+            `}
+          </div>
+        </div>
+      </div>
+      <label>퍽 (최대 4개)</label>
+      ${perkPickerHtml(slotKey, isKillerSlot?'killer':'survivor')}
+    </div>`;
+  }
+
+  function roundsHtml(){
+    const allRounds = getRounds();
+    const query = ui.searchRounds;
+    const rounds = allRounds.filter(r=> roundMatchesSearch(r, query));
+    const editingRound = ui.editingRoundId ? allRounds.find(r=>r.roundId===ui.editingRoundId) : null;
+    const editingDate = editingRound ? editingRound.date : new Date().toISOString().slice(0,10);
+
+    const formSection = !ui.isAdmin ? '' : `
+    <div class="card">
+      <h3>라운드 ${editingRound?'수정':'추가'} <span class="muted" style="font-size:12px; font-weight:500;">(킬러 1명 + 생존자 최대 4명을 한 번에 기록)</span></h3>
+      <form id="form-round">
+        <div class="form-grid" style="max-width:220px;">
+          <div><label>날짜</label><input type="date" name="date" value="${editingDate}"></div>
+        </div>
+        ${roundSlotFormHtml('round-killer', '킬러', editingRound && editingRound.killer ? editingRound.killer : null)}
+        ${[0,1,2,3].map(i=> roundSlotFormHtml('round-surv-'+i, `생존자 ${i+1}`, editingRound && editingRound.survivors[i] ? editingRound.survivors[i] : null)).join('')}
+        <div class="row" style="margin-top:12px;">
+          <button type="submit" class="btn btn-killer">${editingRound?'수정 저장':'라운드 기록 추가'}</button>
+          ${editingRound?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-edit-round">취소</button>`:''}
+        </div>
+      </form>
+      <div class="muted" style="margin-top:8px;">※ 생존자 슬롯 중 플레이어를 비워두면 그 슬롯은 저장되지 않습니다. 킬러도 비워두면 기록되지 않습니다.</div>
+    </div>`;
+
+    return `<div class="card">
+      <h3>라운드 기록 검색</h3>
+      <input class="search-box" type="text" id="search-rounds" placeholder="참여 플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
+      <div class="muted" style="margin-top:8px;">한 판(라운드)에 참여한 킬러 1명과 생존자 최대 4명의 기록을 한 카드에서 볼 수 있습니다. "킬러 기록"/"생존자 기록" 탭에서 개별로 추가한 기록은 여기 표시되지 않습니다.</div>
+    </div>
+    ${formSection}
+    ${!allRounds.length ? `<div class="card"><div class="empty">아직 라운드 기록이 없습니다.</div></div>` :
+      !rounds.length ? `<div class="card"><div class="empty">검색 결과가 없습니다.</div></div>` :
+      rounds.map(roundCardHtml).join('')}`;
+  }
+
   function roleHtml(role){
     const isKiller = role==='killer';
     const allMatches = isKiller ? store.killerMatches : store.survivorMatches;
@@ -674,7 +835,7 @@
 
     const editingParticipants = editing && editing.participants ? editing.participants : [];
     const participantCheckboxes = store.players.length ? `<div class="row" style="gap:10px; flex-wrap:wrap;">${store.players.map(pn=>`
-      <label style="display:flex; align-items:center; gap:5px; text-transform:none; font-size:12.5px; color:var(--bone); cursor:pointer;">
+      <label style="display:flex; align-items:center; gap:5px; text-transform:none; font-size:12.5px; color:var(--bone); cursor:pointer; white-space:nowrap;">
         <input type="checkbox" name="participants" value="${esc(pn)}" ${editingParticipants.includes(pn)?'checked':''}> ${playerCellHtml(pn,18,false)}
       </label>`).join('')}</div>` : `<span class="muted">등록된 선수가 없습니다.</span>`;
 
@@ -695,10 +856,10 @@
             </div>
           </div>
         </div>
-        <div class="form-grid">
-          ${[0,1,2,3].map(i=>`<div><label>퍽 ${i+1}</label><input list="dbd-perk-list-${role}" name="perk${i}" type="text" value="${esc(editing&&editing.perks?editing.perks[i]||'':'')}"></div>`).join('')}
+        <div style="margin-bottom:12px;">
+          <label>퍽 (검색해서 선택, 최대 4개)</label>
+          ${perkPickerHtml(role, isKiller?'killer':'survivor')}
         </div>
-        ${datalist('dbd-perk-list-'+role, perkRoster, allMatches.flatMap(m=>m.perks||[]))}
         <div style="margin-bottom:12px;">
           <label>참여한 플레이어 (선택, 인원 제한 없음)</label>
           ${participantCheckboxes}
@@ -708,7 +869,7 @@
           ${editing?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-edit-${role}">취소</button>`:''}
         </div>
       </form>
-      <div class="muted" style="margin-top:8px;">※ ${isKiller? '킬러/퍽 목록은 참고용 예시이며 자유롭게 입력할 수 있습니다. 킬 수는 해당 매치에서 발생한 킬 수를 뜻합니다.' : '생존자 기록은 캐릭터·킬 수 없이 결과와 퍽만 기록합니다.'}</div>
+      <div class="muted" style="margin-top:8px;">※ ${isKiller? '킬러 이름은 참고용 예시이며 자유롭게 입력할 수 있습니다. 킬 수는 해당 매치에서 발생한 킬 수를 뜻합니다.' : '생존자 기록은 캐릭터·킬 수 없이 결과와 퍽만 기록합니다.'}</div>
     </div>`;
 
     return `
@@ -917,9 +1078,34 @@
     });
 
     // search inputs (keep focus while typing)
-    [['search-ranking','searchRanking'],['search-killer','searchKiller'],['search-survivor','searchSurvivor'],['search-balance','searchBalance']].forEach(([id,key])=>{
+    [['search-ranking','searchRanking'],['search-killer','searchKiller'],['search-survivor','searchSurvivor'],['search-balance','searchBalance'],['search-rounds','searchRounds']].forEach(([id,key])=>{
       const el = w.querySelector('#'+id);
       if(el) el.oninput = ()=>{ ui[key] = el.value; rerenderKeepFocus(); };
+    });
+
+    // perk picker (search-as-you-type, click to add/remove)
+    w.querySelectorAll('[id^="perk-search-"]').forEach(el=>{
+      const slotKey = el.id.replace('perk-search-','');
+      el.oninput = ()=>{ ui.perkSearches[slotKey] = el.value; rerenderKeepFocus(); };
+    });
+    w.querySelectorAll('[data-perk-add]').forEach(el=>{
+      el.onclick = ()=>{
+        const [slotKey, name] = el.dataset.perkAdd.split('|');
+        const sel = getPerkSelection(slotKey);
+        if(sel.includes(name)) return;
+        if(sel.length>=4){ showToast('퍽은 최대 4개까지 선택할 수 있습니다.', true); return; }
+        sel.push(name);
+        render();
+      };
+    });
+    w.querySelectorAll('[data-perk-remove]').forEach(el=>{
+      el.onclick = ()=>{
+        const [slotKey, name] = el.dataset.perkRemove.split('|');
+        const sel = getPerkSelection(slotKey);
+        const idx = sel.indexOf(name);
+        if(idx>=0) sel.splice(idx,1);
+        render();
+      };
     });
 
     // profile registration (admin)
@@ -957,17 +1143,61 @@
       const form = w.querySelector('#form-'+role);
       if(form) form.onsubmit = (e)=> onSubmitMatch(e, role);
       const cancel = w.querySelector('#cancel-edit-'+role);
-      if(cancel) cancel.onclick = ()=>{ if(role==='killer') ui.editingKillerId=null; else ui.editingSurvId=null; render(); };
+      if(cancel) cancel.onclick = ()=>{
+        if(role==='killer') ui.editingKillerId=null; else ui.editingSurvId=null;
+        ui.perkSelections[role] = [];
+        ui.perkSearches[role] = '';
+        render();
+      };
     });
     w.querySelectorAll('[data-edit]').forEach(b=>{
       b.onclick = ()=>{
         const [role,id] = b.dataset.edit.split(':');
+        const list = role==='killer' ? store.killerMatches : store.survivorMatches;
+        const rec = list.find(m=>m.id===id);
         if(role==='killer') ui.editingKillerId=id; else ui.editingSurvId=id;
+        ui.perkSelections[role] = rec && rec.perks ? rec.perks.slice() : [];
+        ui.perkSearches[role] = '';
         render();
       };
     });
     w.querySelectorAll('[data-del]').forEach(b=>{
       b.onclick = ()=> onDeleteMatch(b.dataset.del);
+    });
+
+    // round (grouped match) form
+    const roundForm = w.querySelector('#form-round');
+    if(roundForm) roundForm.onsubmit = onSubmitRound;
+    const cancelRound = w.querySelector('#cancel-edit-round');
+    if(cancelRound) cancelRound.onclick = ()=>{
+      ui.editingRoundId = null;
+      resetRoundSlotState();
+      render();
+    };
+    w.querySelectorAll('[data-edit-round]').forEach(b=>{
+      b.onclick = ()=>{
+        const roundId = b.dataset.editRound;
+        const round = getRounds().find(r=>r.roundId===roundId);
+        ui.editingRoundId = roundId;
+        resetRoundSlotState();
+        if(round){
+          if(round.killer) ui.perkSelections['round-killer'] = (round.killer.perks||[]).slice();
+          for(let i=0;i<4;i++){
+            if(round.survivors[i]) ui.perkSelections['round-surv-'+i] = (round.survivors[i].perks||[]).slice();
+          }
+        }
+        render();
+      };
+    });
+    w.querySelectorAll('[data-del-round]').forEach(b=>{
+      b.onclick = async ()=>{
+        if(!confirm('이 라운드의 모든 기록(킬러+생존자)을 삭제할까요?')) return;
+        const roundId = b.dataset.delRound;
+        store.killerMatches = store.killerMatches.filter(m=>m.roundId!==roundId);
+        store.survivorMatches = store.survivorMatches.filter(m=>m.roundId!==roundId);
+        await saveStore();
+        render();
+      };
     });
 
     const addPlayerBtn = w.querySelector('#btn-add-player');
@@ -1123,6 +1353,58 @@
     render();
   }
 
+  function resetRoundSlotState(){
+    ['round-killer','round-surv-0','round-surv-1','round-surv-2','round-surv-3'].forEach(k=>{
+      ui.perkSelections[k] = [];
+      ui.perkSearches[k] = '';
+    });
+  }
+
+  async function onSubmitRound(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const date = fd.get('date') || new Date().toISOString().slice(0,10);
+    const roundId = ui.editingRoundId || uid();
+
+    // if editing, remove the old records for this round first, then re-add fresh ones below
+    if(ui.editingRoundId){
+      store.killerMatches = store.killerMatches.filter(m=>m.roundId!==roundId);
+      store.survivorMatches = store.survivorMatches.filter(m=>m.roundId!==roundId);
+    }
+
+    const killerPlayer = (fd.get('round-killer-player')||'').trim();
+    const killerChar = (fd.get('round-killer-killer')||'').trim();
+    if(killerPlayer && killerChar){
+      ensurePlayer(killerPlayer);
+      store.killerMatches.push({
+        id: uid(), roundId, date,
+        player: killerPlayer, killer: killerChar,
+        kills: Math.max(0, Math.min(4, parseInt(fd.get('round-killer-kills'),10) || 0)),
+        result: fd.get('round-killer-result') || 'win',
+        perks: getPerkSelection('round-killer').slice(),
+        participants: [],
+      });
+    }
+    for(let i=0;i<4;i++){
+      const slotKey = 'round-surv-'+i;
+      const survPlayer = (fd.get(slotKey+'-player')||'').trim();
+      if(!survPlayer) continue;
+      ensurePlayer(survPlayer);
+      store.survivorMatches.push({
+        id: uid(), roundId, date,
+        player: survPlayer,
+        result: fd.get(slotKey+'-result') || 'win',
+        perks: getPerkSelection(slotKey).slice(),
+        participants: [],
+      });
+    }
+
+    ui.editingRoundId = null;
+    resetRoundSlotState();
+    await saveStore();
+    render();
+  }
+
   async function onSubmitMatch(e, role){
     e.preventDefault();
     const isKiller = role==='killer';
@@ -1132,7 +1414,7 @@
     if(!player) return;
     if(isKiller && !roleVal) return;
     ensurePlayer(player);
-    const perks = [0,1,2,3].map(i=> (fd.get('perk'+i)||'').trim()).filter(Boolean);
+    const perks = getPerkSelection(role).slice();
     const resultRaw = fd.get('result');
     const result = (resultRaw==='win'||resultRaw==='draw'||resultRaw==='lose') ? resultRaw : 'lose';
     const participants = fd.getAll('participants').map(v=>v.trim()).filter(Boolean);
@@ -1157,6 +1439,8 @@
       record.id = uid();
       list.push(record);
     }
+    ui.perkSelections[role] = [];
+    ui.perkSearches[role] = '';
     await saveStore();
     render();
   }
