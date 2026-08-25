@@ -1,0 +1,1262 @@
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050a12;
+    --panel:#0b1526;
+    --panel-2:#0f1c30;
+    --line:#22374f;
+    --bone:#e8edf5;
+    --muted:#7e93ab;
+    --killer:#c1524c;
+    --killer-dim:#2c2027;
+    --surv:#d1a83a;
+    --surv-dim:#332c1c;
+    --entity:#3f7fe0;
+    --entity-dim:#122341;
+    --good:#6fae7a;
+    --bad:#d1615c;
+    --draw:#c2a55c;
+    --rank1:#4c8fef;
+    --rank2:#39b6ac;
+    --rank3:#9b7fe0;
+  }
+  *{box-sizing:border-box;}
+  #dbd-root{
+    font-family:'Noto Sans KR',sans-serif;
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(63,127,224,0.12), transparent 55%),
+      radial-gradient(ellipse at 90% 10%, rgba(63,127,224,0.07), transparent 50%),
+      var(--bg);
+    color:var(--bone);
+    min-height:100%;
+    position:relative;
+    overflow-x:hidden;
+  }
+  #dbd-root::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    z-index:0;
+  }
+  .dbd-wrap{ max-width:980px; margin:0 auto; padding:28px 18px 60px; position:relative; z-index:1;}
+
+  .dbd-header{ display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:18px; margin-bottom:22px;}
+  .dbd-title{ font-family:'Noto Sans KR',sans-serif; font-weight:800; font-size:25px; color:var(--bone); margin:0;}
+  .dbd-title small{ display:block; font-weight:500; font-size:12.5px; color:var(--muted); margin-top:6px;}
+  .dbd-authrow{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted);}
+
+  .btn{
+    font-family:'Noto Sans KR',sans-serif; font-weight:600; font-size:13px;
+    background:var(--panel-2); color:var(--bone); border:1px solid var(--line);
+    padding:8px 14px; border-radius:3px; cursor:pointer; transition:border-color .15s, transform .1s;
+  }
+  .btn:hover{ border-color:var(--muted); }
+  .btn:active{ transform:translateY(1px); }
+  .btn-killer{ background:var(--killer-dim); border-color:var(--killer); color:#f2d6d6;}
+  .btn-surv{ background:var(--surv-dim); border-color:var(--surv); color:#f1e6b8;}
+  .btn-ghost{ background:transparent; }
+  .btn-sm{ padding:4px 9px; font-size:11.5px; }
+  .btn-danger{ border-color:var(--bad); color:#f2b8b5;}
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; }
+  .tab{
+    font-family:'Noto Sans KR',sans-serif; font-size:12.5px; font-weight:700;
+    padding:9px 16px; border:1px solid var(--line); border-radius:3px; background:var(--panel);
+    color:var(--muted); cursor:pointer;
+  }
+  .tab.active{ color:var(--bone); border-color:var(--entity); background:var(--entity-dim); }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:18px 20px; margin-bottom:16px; }
+  .card h3{ font-size:15px; margin:0 0 12px; color:var(--bone); font-weight:700;}
+  .muted{ color:var(--muted); font-size:12.5px; }
+  .empty{ text-align:center; padding:34px 10px; color:var(--muted); font-size:13.5px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+  .stat-box{ background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:12px 14px; }
+  .stat-box .label{ font-size:11px; color:var(--muted); margin-bottom:6px;}
+  .stat-box .value{ font-size:20px; font-weight:700; color:var(--bone); }
+  .stat-box.killer .value{ color:#e08c8c; }
+  .stat-box.surv .value{ color:var(--surv); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; color:var(--bone); }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--line); }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); color:var(--bone); vertical-align:middle;}
+  tr:last-child td{ border-bottom:none; }
+  tr.clickable{ cursor:pointer; }
+  tr.clickable:hover td{ background:var(--panel-2); }
+  .mono{ font-weight:700; color:var(--bone); }
+  .win{ color:var(--good); font-weight:700;} .lose{ color:var(--bad); font-weight:700;} .draw{ color:var(--draw); font-weight:700;}
+  .perk-tag{ display:inline-block; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; padding:2px 7px; font-size:11px; margin:1px 3px 1px 0; color:var(--bone);}
+
+  .player-cell{ display:flex; align-items:center; gap:9px; }
+  .avatar{ border-radius:50%; object-fit:cover; flex-shrink:0; border:1px solid var(--line); display:block; }
+  .avatar-fallback{ border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-weight:700; }
+  .avatar.square, .avatar-fallback.square{ border-radius:6px; }
+
+  .rank-badge{
+    width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:13px; flex-shrink:0; border:2px solid;
+  }
+  .rank-1{ border-color:var(--rank1); color:#bcd8ff; background:radial-gradient(circle, rgba(76,143,239,0.20), transparent); }
+  .rank-2{ border-color:var(--rank2); color:#bdece6; background:radial-gradient(circle, rgba(57,182,172,0.18), transparent); }
+  .rank-3{ border-color:var(--rank3); color:#d6c9f7; background:radial-gradient(circle, rgba(155,127,224,0.18), transparent); }
+  .rank-n{ border-color:var(--line); color:var(--muted); background:var(--panel-2); }
+
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:12px; }
+  label{ font-size:11px; color:var(--muted); display:block; margin-bottom:4px; }
+  input[type=text], input[type=date], input[type=password], input[type=search], select{
+    width:100%; background:var(--bg); border:1px solid var(--line); color:var(--bone);
+    padding:8px 9px; border-radius:3px; font-family:'Noto Sans KR',sans-serif; font-size:13px;
+  }
+  input[type=file]{ color:var(--bone); font-size:12.5px; }
+  input:focus, select:focus{ outline:2px solid var(--entity); outline-offset:1px; border-color:var(--entity); }
+  .radio-row{ display:flex; gap:14px; align-items:center; height:36px; flex-wrap:wrap;}
+  .radio-row label{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--bone); margin:0; cursor:pointer;}
+  .search-box{ margin-bottom:6px; max-width:320px; }
+
+  .divider{ height:1px; background:var(--line); margin:16px 0; }
+  a.linklike{ color:#b79ee8; cursor:pointer; text-decoration:underline; font-size:12.5px; }
+  .footnote{ margin-top:28px; padding-top:14px; border-top:1px solid var(--line); font-size:11.5px; color:var(--muted); line-height:1.6;}
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .grow{ flex:1; min-width:180px; }
+  .profile-header{ display:flex; align-items:center; gap:14px; }
+  .freq-list{ display:flex; flex-direction:column; gap:6px; }
+  .freq-row{ display:flex; align-items:center; gap:8px; justify-content:space-between; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; padding:7px 11px; font-size:12.5px;}
+  .freq-row .freq-left{ display:flex; align-items:center; gap:8px; }
+  .roster-chip{ display:flex; align-items:center; gap:7px; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:4px 10px 4px 4px; }
+  .dbd-toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); color:var(--bone); padding:10px 16px; border-radius:6px; font-size:12.5px; opacity:0; pointer-events:none; transition:opacity .25s; z-index:9999; }
+  .dbd-toast.error{ border-color:var(--bad); color:#f6c7c3; }
+  @media (max-width:520px){ .dbd-title{ font-size:20px; } }
+</style>
+
+<div id="dbd-root"><div class="dbd-wrap"><div class="empty">불러오는 중...</div></div></div>
+
+<!--
+  ============================================================
+  이 사이트는 GitHub 저장소를 데이터 저장소로 사용합니다.
+  아래 GITHUB_OWNER / GITHUB_REPO 값이 본인 저장소와 맞는지 확인하세요.
+  읽기는 누구나 가능(공개 raw 파일), 쓰기(기록 추가/수정)는 관리자가
+  본인 브라우저에만 저장하는 GitHub 개인 접근 토큰(PAT)으로 인증합니다.
+  ============================================================
+-->
+
+<script>
+(function(){
+  const STORE_KEY = 'dbd-store';
+  const IS_ADMIN_KEY = 'is-admin-unlocked';
+  const AVATAR_SIZE = 160;
+
+  const KILLER_SEED = ["트래퍼","힐빌리","너스","샤이프","헉스","닥터","헌트리스","레이더","데스슬링어","블라이트","트릭스터","나이트메어","고스트페이스","드라큘라","싱귤래러티","언노운","캐니발","레거시","좀비","스피릿"];
+  const SURV_SEED = ["드와이트","멕","클로데트","제이크","넷","기술자","엘라","페이지","벤","성모","브람스","저드","자넷","제인","아담","제프","커스터드","팜파스","펠릭스","셀레스트"];
+  const PERK_SEED = ["BBQ와 스테이크","고삐","무자비한 타격","저주받은","슬픈 발걸음","엔드게임","분노","끈질김","치유","완강함","기민함","이타심","자기 관리","불굴의 의지","보복","반향","도살자의 저주","연쇄 사냥꾼","치어리더","단호한 몸부림"];
+
+  let store = null;
+  let ui = {
+    tab:'ranking',        // ranking | killer | survivor | admin | player
+    isAdmin:false,
+    editingKillerId:null,
+    editingSurvId:null,
+    editingKillerProfileId:null,
+    editingKillerPerkId:null,
+    editingSurvivorPerkId:null,
+    viewingPlayer:null,
+    returnTab:'ranking',
+    searchRanking:'',
+    searchKiller:'',
+    searchSurvivor:'',
+    searchBalance:'',
+  };
+
+  function root(){ return document.getElementById('dbd-root'); }
+  function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function uid(){ try{ return crypto.randomUUID(); }catch(e){ return 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); } }
+  function pct(n){ return (Math.round(n*10)/10).toFixed(1); }
+  function num1(n){ return (Math.round(n*10)/10).toFixed(1); }
+  function normSearch(s){ return (s||'').toString().replace(/\s+/g,'').toLowerCase(); }
+  function matchesSearch(name, query){ if(!query) return true; return normSearch(name).includes(normSearch(query)); }
+
+  // ---------- storage abstraction ----------
+  // Priority: (1) Claude artifact's window.storage — shared, only works inside claude.ai.
+  //           (2) GitHub repo — shared, works once this file is hosted (e.g. GitHub Pages).
+  //               Reads use the repo's public raw file (no token needed, works for anyone).
+  //               Writes use the GitHub Contents API with a Personal Access Token that the
+  //               admin enters once and that is stored ONLY in their own browser — it is
+  //               never included in this file or the hosted site.
+  //           (3) This browser's own localStorage — last resort, single browser/computer only.
+  const GITHUB_OWNER = 'jambi-ws';
+  const GITHUB_REPO = 'jambidbd';
+  const GITHUB_BRANCH = 'main';
+  const GITHUB_DATA_PATH = 'data/dbd-store.json';
+  const GH_TOKEN_KEY = 'github-pat';
+
+  const HAS_CLOUD_STORAGE = !!(window.storage && typeof window.storage.get==='function' && typeof window.storage.set==='function');
+  const SHARED_MODE = HAS_CLOUD_STORAGE ? 'claude' : 'github';
+  function lsKey(key, shared){ return 'jambidbd-dbd:'+(shared?'shared':'personal')+':'+key; }
+
+  async function githubReadStore(){
+    const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_DATA_PATH}?t=${Date.now()}`;
+    const resp = await fetch(url, { cache: 'no-store' });
+    if(resp.status===404) return null; // data file doesn't exist yet — treated as empty store
+    if(!resp.ok) throw new Error('github read failed: '+resp.status);
+    return await resp.text();
+  }
+  async function githubWriteStore(jsonText){
+    const token = localStorage.getItem(lsKey(GH_TOKEN_KEY, false));
+    if(!token) throw new Error('no github token saved on this browser');
+    const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_DATA_PATH}`;
+    let sha;
+    try{
+      const getResp = await fetch(apiUrl+`?ref=${GITHUB_BRANCH}`, { headers: { Authorization: `token ${token}` } });
+      if(getResp.ok){ const data = await getResp.json(); sha = data.sha; }
+    }catch(e){ /* file probably doesn't exist yet — create it */ }
+    const content = btoa(unescape(encodeURIComponent(jsonText)));
+    const body = { message: '내전 기록 업데이트', content, branch: GITHUB_BRANCH };
+    if(sha) body.sha = sha;
+    const putResp = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if(!putResp.ok){
+      const errText = await putResp.text().catch(()=> '');
+      throw new Error('github write failed: '+putResp.status+' '+errText);
+    }
+    return true;
+  }
+  async function verifyGithubToken(token){
+    const resp = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`, { headers: { Authorization: `token ${token}` } });
+    return resp.ok;
+  }
+
+  async function storageGet(key, shared){
+    if(HAS_CLOUD_STORAGE) return window.storage.get(key, shared);
+    if(shared){
+      const text = await githubReadStore();
+      return text!=null ? { key, value: text, shared:true } : null;
+    }
+    const raw = localStorage.getItem(lsKey(key, shared));
+    return raw!=null ? { key, value: raw, shared: !!shared } : null;
+  }
+  async function storageSet(key, value, shared){
+    if(HAS_CLOUD_STORAGE) return window.storage.set(key, value, shared);
+    if(shared){
+      await githubWriteStore(value);
+      return { key, value, shared:true };
+    }
+    localStorage.setItem(lsKey(key, shared), value);
+    return { key, value, shared: !!shared };
+  }
+
+  function defaultStore(){ return { players:[], avatars:{}, killers:[], killerPerks:[], survivorPerks:[], killersSeeded:false, perksSeeded:false, killerMatches:[], survivorMatches:[], adminHash:null }; }
+
+  function normalizeStore(s){
+    if(!s.avatars) s.avatars = {};
+    if(!s.killers) s.killers = [];
+    if(!s.killerPerks) s.killerPerks = [];
+    if(!s.survivorPerks) s.survivorPerks = [];
+    if(typeof s.killersSeeded !== 'boolean') s.killersSeeded = false;
+    if(typeof s.perksSeeded !== 'boolean') s.perksSeeded = false;
+    return s;
+  }
+  async function loadStore(){
+    for(let attempt=0; attempt<3; attempt++){
+      try{
+        const r = await storageGet(STORE_KEY, true);
+        const s = r && r.value ? JSON.parse(r.value) : defaultStore();
+        return { store: normalizeStore(s), loadedOk: true };
+      }catch(e){
+        console.error('load attempt '+(attempt+1)+' failed', e);
+        if(attempt<2) await new Promise(res=>setTimeout(res,350));
+      }
+    }
+    return { store: defaultStore(), loadedOk: false };
+  }
+  function ensureToastEl(){
+    let toast = document.getElementById('dbd-toast');
+    if(!toast){
+      toast = document.createElement('div');
+      toast.id = 'dbd-toast';
+      toast.className = 'dbd-toast';
+      document.body.appendChild(toast);
+    }
+    return toast;
+  }
+  function showToast(msg, isError){
+    const toast = ensureToastEl();
+    toast.textContent = msg;
+    toast.className = 'dbd-toast' + (isError?' error':'');
+    toast.style.opacity = '1';
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(()=>{ toast.style.opacity='0'; }, 2600);
+  }
+  async function saveStore(){
+    for(let attempt=0; attempt<2; attempt++){
+      try{
+        await storageSet(STORE_KEY, JSON.stringify(store), true);
+        return true;
+      }catch(e){
+        console.error('save failed (attempt '+(attempt+1)+')', e);
+        if(attempt===0){ await new Promise(r=>setTimeout(r,350)); continue; }
+        showToast('저장 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.', true);
+        return false;
+      }
+    }
+  }
+  async function getPersonal(key){
+    try{ const r = await storageGet(key, false); return r ? r.value : null; }
+    catch(e){ return null; }
+  }
+  async function setPersonal(key, val){
+    try{ await storageSet(key, val, false); }catch(e){ console.error(e); }
+  }
+
+  function ensurePlayer(name){
+    if(name && !store.players.includes(name)) store.players.push(name);
+  }
+
+  function fileToCompressedDataUrl(file){
+    return new Promise((resolve, reject)=>{
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onerror = ()=> reject(new Error('read failed'));
+      reader.onload = ()=>{
+        img.onerror = ()=> reject(new Error('image load failed'));
+        img.onload = ()=>{
+          const s = AVATAR_SIZE;
+          const canvas = document.createElement('canvas');
+          canvas.width = s; canvas.height = s;
+          const ctx = canvas.getContext('2d');
+          const side = Math.min(img.width, img.height);
+          const sx = (img.width - side)/2, sy = (img.height - side)/2;
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, s, s);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function avatarBlock(src, label, size, extraAttrs, shape){
+    const attrs = extraAttrs||'';
+    const cls = shape==='square' ? ' square' : '';
+    if(src) return `<img class="avatar${cls}" ${attrs} src="${src}" width="${size}" height="${size}" alt="">`;
+    const initial = (label||'?').trim().charAt(0).toUpperCase() || '?';
+    return `<div class="avatar-fallback${cls}" ${attrs} style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.4)}px;">${esc(initial)}</div>`;
+  }
+  function avatarHtml(name, size, clickable){
+    const src = store.avatars && store.avatars[name];
+    const attrs = clickable ? `data-view-player="${esc(name)}" style="cursor:pointer;"` : '';
+    return avatarBlock(src, name, size, attrs);
+  }
+  function playerCellHtml(name, size, clickable){
+    const nameAttrs = clickable? `data-view-player="${esc(name)}" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;"` : '';
+    return `<span class="player-cell">${avatarHtml(name, size||26, clickable)}<span ${nameAttrs}>${esc(name)}</span></span>`;
+  }
+  function findKillerEntry(name){
+    const n = normSearch(name);
+    if(!n) return null;
+    return (store.killers||[]).find(k=> normSearch(k.name)===n) || null;
+  }
+  function killerAvatarHtml(name, size){
+    const entry = findKillerEntry(name);
+    return avatarBlock(entry?entry.avatar:null, name, size, '');
+  }
+  function findPerkEntry(name, kind){
+    const n = normSearch(name);
+    if(!n) return null;
+    const list = kind==='killer' ? store.killerPerks : store.survivorPerks;
+    return (list||[]).find(p=> normSearch(p.name)===n) || null;
+  }
+  function perkAvatarHtml(name, kind, size){
+    const entry = findPerkEntry(name, kind);
+    return avatarBlock(entry?entry.avatar:null, name, size, '', 'square');
+  }
+
+  // ---------- stats ----------
+  function killerStatsFor(name){
+    const ms = store.killerMatches.filter(m=>m.player===name);
+    const wins = ms.filter(m=>m.result==='win').length;
+    const draws = ms.filter(m=>m.result==='draw').length;
+    const losses = ms.filter(m=>m.result==='lose').length;
+    const total = ms.length;
+    const killSum = ms.reduce((a,m)=> a + (typeof m.kills==='number'? m.kills : 0), 0);
+    return { total, wins, draws, losses, winRate: total? wins/total*100 : 0, matches: ms, avgKills: total? killSum/total : 0 };
+  }
+  function survStatsFor(name){
+    const ms = store.survivorMatches.filter(m=>m.player===name);
+    const wins = ms.filter(m=>m.result==='win').length;
+    const draws = ms.filter(m=>m.result==='draw').length;
+    const losses = ms.filter(m=>m.result==='lose').length;
+    const total = ms.length;
+    return { total, wins, draws, losses, winRate: total? wins/total*100 : 0, matches: ms };
+  }
+  function topFreq(list, field, n){
+    const freq = {}; const wins = {};
+    list.forEach(m=>{ const v=m[field]; if(!v) return; freq[v]=(freq[v]||0)+1; if(m.result==='win') wins[v]=(wins[v]||0)+1; });
+    return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([name,count])=>({name, count, wins: wins[name]||0}));
+  }
+  function topPerkFreq(list, n){
+    const freq = {};
+    list.forEach(m=> (m.perks||[]).forEach(p=>{ if(p) freq[p]=(freq[p]||0)+1; }));
+    return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([name,count])=>({name, count}));
+  }
+  function summaryFor(name){
+    const k = killerStatsFor(name);
+    const s = survStatsFor(name);
+    const totalMatches = k.total + s.total;
+    const wins = k.wins + s.wins;
+    const draws = k.draws + s.draws;
+    const losses = k.losses + s.losses;
+    const overallRate = totalMatches ? wins/totalMatches*100 : 0;
+    return { name, k, s, totalMatches, wins, draws, losses, overallRate,
+      topKillers: topFreq(k.matches,'killer',5),
+      topKillerPerks: topPerkFreq(k.matches,5),
+      topSurvPerks: topPerkFreq(s.matches,5),
+    };
+  }
+  function ranking(){
+    return store.players.map(summaryFor).filter(p=>p.totalMatches>0).sort((a,b)=> b.overallRate - a.overallRate || b.totalMatches - a.totalMatches);
+  }
+  function rankBadgeClass(i){ return i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'; }
+
+  function datalist(id, seed, extra){
+    const set = new Set(seed);
+    extra.forEach(v=>{ if(v) set.add(v); });
+    return `<datalist id="${id}">${[...set].map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
+  }
+  function resultLabelsFor(isKiller){ return isKiller ? {win:'승리',draw:'무',lose:'패배'} : {win:'탈출',draw:'무',lose:'패배'}; }
+
+  // ---------- render ----------
+  function render(){
+    const w = root();
+    w.innerHTML = `<div class="dbd-wrap">
+      ${headerHtml()}
+      ${tabsHtml()}
+      <div id="dbd-body">${bodyHtml()}</div>
+      <div class="footnote">랭킹과 기록을 조회할 수 있습니다.</div>
+    </div>`;
+    bindEvents();
+  }
+
+  function rerenderKeepFocus(){
+    const active = document.activeElement;
+    let restoreId=null, selStart=null, selEnd=null;
+    if(active && active.id && root().contains(active)){
+      restoreId = active.id;
+      if('selectionStart' in active){ try{ selStart=active.selectionStart; selEnd=active.selectionEnd; }catch(e){} }
+    }
+    render();
+    if(restoreId){
+      const el = document.getElementById(restoreId);
+      if(el){
+        el.focus();
+        if(selStart!=null && 'setSelectionRange' in el){ try{ el.setSelectionRange(selStart, selEnd); }catch(e){} }
+      }
+    }
+  }
+
+  function headerHtml(){
+    return `<div class="dbd-header">
+      <h1 class="dbd-title">데바데 내전 기록실<small>Killer / Survivor 전적 · 랭킹</small></h1>
+      <div class="dbd-authrow">
+        ${ui.isAdmin
+          ? `<span>관리자 모드</span><button class="btn btn-sm" id="btn-manual-save">저장</button><button class="btn btn-sm" id="btn-lock">잠그기</button>`
+          : `<button class="btn btn-sm" id="btn-unlock">관리자 모드</button>`}
+      </div>
+    </div>`;
+  }
+
+  function tabsHtml(){
+    const tabs = [['ranking','랭킹'],['balance','맞밸런스'],['killer','킬러 기록'],['survivor','생존자 기록']];
+    if(ui.isAdmin) tabs.push(['admin','관리']);
+    return `<div class="tabs">${tabs.map(([id,label])=>`<div class="tab ${ui.tab===id?'active':''}" data-tab="${id}">${label}</div>`).join('')}</div>`;
+  }
+
+  function bodyHtml(){
+    if(ui.tab==='player' && ui.viewingPlayer) return playerDetailHtml(ui.viewingPlayer);
+    switch(ui.tab){
+      case 'ranking': return rankingHtml();
+      case 'balance': return balanceHtml();
+      case 'killer': return roleHtml('killer');
+      case 'survivor': return roleHtml('survivor');
+      case 'admin': return ui.isAdmin ? adminHtml() : rankingHtml();
+      default: return rankingHtml();
+    }
+  }
+
+  function combinationsUpToK(arr, maxK){
+    const results = [];
+    function rec(start, combo){
+      if(combo.length>=2) results.push(combo.slice());
+      if(combo.length>=maxK) return;
+      for(let i=start;i<arr.length;i++){
+        combo.push(arr[i]);
+        rec(i+1, combo);
+        combo.pop();
+      }
+    }
+    rec(0, []);
+    return results;
+  }
+
+  function computeBalanceFor(name, board){
+    const P = board.find(p=>p.name===name);
+    if(!P) return null;
+    const others = board.filter(p=>p.name!==name);
+    let best=null, bestDiff=Infinity;
+    others.forEach(o=>{ const diff=Math.abs(o.overallRate-P.overallRate); if(diff<bestDiff){ bestDiff=diff; best=o; } });
+
+    const weaker = others.filter(o=>o.overallRate<=P.overallRate);
+    let bestGroup=null, bestGroupDiff=Infinity;
+    if(weaker.length>=2){
+      const pool = weaker.slice(0, 12); // keep combination search reasonable
+      const combos = combinationsUpToK(pool, Math.min(pool.length, 6));
+      combos.forEach(combo=>{
+        const avg = combo.reduce((a,c)=>a+c.overallRate,0)/combo.length;
+        const diff = Math.abs(avg-P.overallRate);
+        if(diff < bestGroupDiff - 1e-9 || (Math.abs(diff-bestGroupDiff)<1e-9 && bestGroup && combo.length<bestGroup.length)){
+          bestGroupDiff = diff; bestGroup = combo;
+        }
+      });
+    }
+    return { P, best, bestDiff, bestGroup, bestGroupDiff };
+  }
+
+  function balanceInfoHtml(name, board){
+    if(board.length < 2) return `<div class="muted">비교할 수 있는 선수가 2명 이상 필요합니다.</div>`;
+    const b = computeBalanceFor(name, board);
+    if(!b) return `<div class="muted">경기 기록이 없어 맞밸런스를 계산할 수 없습니다.</div>`;
+    return `<div class="row" style="gap:26px; align-items:flex-start;">
+      <div class="grow">
+        <div class="muted" style="margin-bottom:6px;">1:1 맞밸런스 상대</div>
+        ${b.best ? `<div class="row" style="gap:8px; align-items:center;">${playerCellHtml(b.best.name,28,true)}<span class="mono">${pct(b.bestDiff)}%p 차이</span></div>` : `<span class="muted">비교할 다른 선수가 없습니다.</span>`}
+      </div>
+      <div class="grow">
+        <div class="muted" style="margin-bottom:6px;">그룹 맞밸런스</div>
+        ${b.bestGroup ? `<div class="row" style="gap:6px; align-items:center; flex-wrap:wrap;">${b.bestGroup.map(g=>playerCellHtml(g.name,22,true)).join('')}<span class="mono">${pct(b.bestGroupDiff)}%p 차이</span></div>` : `<span class="muted">그룹으로 묶을 낮은 승률의 선수가 부족합니다.</span>`}
+      </div>
+    </div>`;
+  }
+
+  function balanceHtml(){
+    const board = ranking();
+    const query = ui.searchBalance;
+    const filtered = board.filter(p=> matchesSearch(p.name, query));
+    return `<div class="card">
+      <h3>맞밸런스</h3>
+      <input class="search-box" type="text" id="search-balance" placeholder="선수 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
+      <div class="muted" style="margin-top:8px;">전체 승률이 비슷한 선수와 1:1로 맞붙이거나, 승률이 낮은 여러 명을 묶어 평균 승률을 맞추는 방식으로 계산합니다. 경기 기록이 없는 선수는 대상에서 제외됩니다.</div>
+    </div>
+    ${board.length<2 ? `<div class="card"><div class="empty">비교할 수 있는 선수가 2명 이상 필요합니다.</div></div>` :
+      !filtered.length ? `<div class="card"><div class="empty">검색 결과가 없습니다.</div></div>` :
+      filtered.map((p,i)=>`<div class="card">
+        <div class="row" style="justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:10px;">
+          ${playerCellHtml(p.name, 32, true)}
+          <span class="muted mono">전체 승률 ${pct(p.overallRate)}%</span>
+        </div>
+        ${balanceInfoHtml(p.name, board)}
+      </div>`).join('')}`;
+  }
+
+
+  function rankingHtml(){
+    const all = ranking();
+    const board = all.filter(p=> matchesSearch(p.name, ui.searchRanking));
+    return `<div class="card">
+      <h3>랭킹 (전체 승률 기준)</h3>
+      <input class="search-box" type="text" id="search-ranking" placeholder="플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(ui.searchRanking)}">
+      ${!all.length ? `<div class="empty">아직 등록된 선수/기록이 없습니다.</div>` :
+        !board.length ? `<div class="empty">검색 결과가 없습니다.</div>` :
+        `<table>
+          <thead><tr><th>순위</th><th>선수</th><th>총 판수</th><th>승 / 무 / 패</th><th>승률</th></tr></thead>
+          <tbody>
+          ${board.map(p=>{ const i = all.indexOf(p); return `<tr class="clickable" data-view-player="${esc(p.name)}">
+            <td><div class="rank-badge ${rankBadgeClass(i)}">${i+1}</div></td>
+            <td>${playerCellHtml(p.name, 26, false)}</td>
+            <td class="mono">${p.totalMatches}</td>
+            <td class="mono"><span class="win">${p.wins}</span> / <span class="draw">${p.draws}</span> / <span class="lose">${p.losses}</span></td>
+            <td class="mono">${p.totalMatches? pct(p.overallRate)+'%':'-'}</td>
+          </tr>`; }).join('')}
+          </tbody>
+        </table>`}
+      <div class="muted" style="margin-top:10px;">선수 이름 또는 프로필을 클릭하면 상세 전적을 볼 수 있습니다.</div>
+    </div>`;
+  }
+
+  function statBlock(summary){
+    const p = summary;
+    return `
+    <div class="stat-grid">
+      <div class="stat-box overall"><div class="label">총 라운드</div><div class="value">${p.totalMatches}</div></div>
+      <div class="stat-box overall"><div class="label">승 / 무 / 패</div><div class="value" style="font-size:16px;"><span class="win">${p.wins}</span> / <span class="draw">${p.draws}</span> / <span class="lose">${p.losses}</span></div></div>
+      <div class="stat-box overall"><div class="label">전체 승률</div><div class="value">${p.totalMatches? pct(p.overallRate)+'%':'-'}</div></div>
+      <div class="stat-box killer"><div class="label">킬러 경기 수</div><div class="value">${p.k.total}</div></div>
+      <div class="stat-box killer"><div class="label">킬러 평균 킬</div><div class="value">${p.k.total? num1(p.k.avgKills):'-'}</div></div>
+      <div class="stat-box surv"><div class="label">생존자 경기 수</div><div class="value">${p.s.total}</div></div>
+    </div>`;
+  }
+
+  function freqListHtml(items, iconFn){
+    if(!items.length) return `<div class="muted">기록 없음</div>`;
+    return `<div class="freq-list">${items.map(it=>`<div class="freq-row"><span class="freq-left">${iconFn? iconFn(it.name):''}<span>${esc(it.name)}</span></span><span class="mono">${it.count}회${it.wins!=null?` · ${it.wins}승`:''}</span></div>`).join('')}</div>`;
+  }
+
+  function playerDetailHtml(name){
+    const p = summaryFor(name);
+    const board = ranking();
+    const rankIdx = board.findIndex(b=>b.name===name);
+    return `
+    <div class="row" style="justify-content:space-between; margin-bottom:14px;">
+      <button class="btn btn-sm" id="btn-back">← 뒤로</button>
+      ${rankIdx>=0 ? `<span class="muted">전체 ${board.length}명 중 ${rankIdx+1}위</span>` : ''}
+    </div>
+    <div class="card">
+      <div class="profile-header">
+        ${avatarHtml(name, 56, false)}
+        <div>
+          <h3 style="margin:0;">${esc(name)}</h3>
+          ${rankIdx>=0 ? `<div class="rank-badge ${rankBadgeClass(rankIdx)}" style="margin-top:6px;">${rankIdx+1}</div>` : ''}
+        </div>
+      </div>
+      <div class="divider"></div>
+      ${statBlock(p)}
+    </div>
+    <div class="card">
+      <div class="row" style="gap:26px; align-items:flex-start;">
+        <div class="grow">
+          <h3>자주 사용한 킬러</h3>
+          ${freqListHtml(p.topKillers, n=>killerAvatarHtml(n,22))}
+          <div class="divider"></div>
+          <h3>자주 사용한 킬러 퍽</h3>
+          ${freqListHtml(p.topKillerPerks, n=>perkAvatarHtml(n,'killer',18))}
+        </div>
+        <div class="grow">
+          <h3>자주 사용한 생존자 퍽</h3>
+          ${freqListHtml(p.topSurvPerks, n=>perkAvatarHtml(n,'survivor',18))}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>맞밸런스</h3>
+      ${balanceInfoHtml(name, board)}
+    </div>`;
+  }
+
+  function roleHtml(role){
+    const isKiller = role==='killer';
+    const allMatches = isKiller ? store.killerMatches : store.survivorMatches;
+    const roleField = 'killer'; // only killer matches carry a character field now
+    const editingId = isKiller ? ui.editingKillerId : ui.editingSurvId;
+    const editing = editingId ? allMatches.find(m=>m.id===editingId) : null;
+    const resultLabels = resultLabelsFor(isKiller);
+    const searchKey = isKiller ? 'searchKiller' : 'searchSurvivor';
+    const query = ui[searchKey];
+    const matches = allMatches.filter(m=> matchesSearch(m.player, query));
+    const charRoster = (store.killers||[]).map(k=>k.name);
+    const perkRoster = (isKiller ? store.killerPerks : store.survivorPerks).map(p=>p.name);
+
+    const rows = [...matches].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).map(m=>`
+      <tr>
+        <td>${playerCellHtml(m.player, 24, true)}</td>
+        ${isKiller ? `<td><span class="player-cell">${killerAvatarHtml(m.killer,22)}<span>${esc(m.killer||'-')}</span></span></td>` : ''}
+        ${isKiller ? `<td class="mono">${m.kills!=null? m.kills+'킬' : '-'}</td>` : ''}
+        <td>${(m.perks||[]).filter(Boolean).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(p, role, 15)}${esc(p)}</span>`).join('')||'<span class="muted">-</span>'}</td>
+        <td class="${m.result==='win'?'win':m.result==='draw'?'draw':'lose'}">${resultLabels[m.result]||resultLabels.lose}</td>
+        <td class="mono">${esc(m.date||'')}</td>
+        <td>${(m.participants||[]).length? `<span class="row" style="gap:4px;">${(m.participants||[]).map(pn=>playerCellHtml(pn,18,true)).join('')}</span>` : '<span class="muted">-</span>'}</td>
+        ${ui.isAdmin? `<td class="row" style="gap:4px;">
+          <button class="btn btn-sm" data-edit="${role}:${m.id}">수정</button>
+          <button class="btn btn-sm btn-danger" data-del="${role}:${m.id}">삭제</button>
+        </td>` : ''}
+      </tr>`).join('');
+
+    const editingParticipants = editing && editing.participants ? editing.participants : [];
+    const participantCheckboxes = store.players.length ? `<div class="row" style="gap:10px; flex-wrap:wrap;">${store.players.map(pn=>`
+      <label style="display:flex; align-items:center; gap:5px; text-transform:none; font-size:12.5px; color:var(--bone); cursor:pointer;">
+        <input type="checkbox" name="participants" value="${esc(pn)}" ${editingParticipants.includes(pn)?'checked':''}> ${playerCellHtml(pn,18,false)}
+      </label>`).join('')}</div>` : `<span class="muted">등록된 선수가 없습니다.</span>`;
+
+    const formSection = !ui.isAdmin ? '' : `
+    <div class="card">
+      <h3>${isKiller?'킬러':'생존자'} 기록 ${editing? '수정':'추가'}</h3>
+      <form id="form-${role}">
+        <div class="form-grid">
+          <div><label>플레이어</label><input list="dbd-players-list-${role}" name="player" type="text" value="${esc(editing?editing.player:'')}" required>${datalist('dbd-players-list-'+role, [], store.players)}</div>
+          ${isKiller? `<div><label>킬러</label><input list="dbd-role-list-${role}" name="role" type="text" value="${esc(editing?editing[roleField]:'')}" required>${datalist('dbd-role-list-'+role, charRoster, allMatches.map(m=>m[roleField]))}</div>` : ''}
+          ${isKiller? `<div><label>킬 수</label><select name="kills">${[0,1,2,3,4].map(n=>`<option value="${n}" ${editing&&editing.kills===n?'selected':(!editing&&n===0?'selected':'')}>${n}킬</option>`).join('')}</select></div>` : ''}
+          <div><label>날짜</label><input type="date" name="date" value="${editing? editing.date : new Date().toISOString().slice(0,10)}"></div>
+          <div><label>결과</label>
+            <div class="radio-row">
+              <label><input type="radio" name="result" value="win" ${editing? (editing.result==='win'?'checked':'') : 'checked'}> ${resultLabels.win}</label>
+              <label><input type="radio" name="result" value="draw" ${editing&&editing.result==='draw'?'checked':''}> ${resultLabels.draw}</label>
+              <label><input type="radio" name="result" value="lose" ${editing&&editing.result==='lose'?'checked':''}> ${resultLabels.lose}</label>
+            </div>
+          </div>
+        </div>
+        <div class="form-grid">
+          ${[0,1,2,3].map(i=>`<div><label>퍽 ${i+1}</label><input list="dbd-perk-list-${role}" name="perk${i}" type="text" value="${esc(editing&&editing.perks?editing.perks[i]||'':'')}"></div>`).join('')}
+        </div>
+        ${datalist('dbd-perk-list-'+role, perkRoster, allMatches.flatMap(m=>m.perks||[]))}
+        <div style="margin-bottom:12px;">
+          <label>참여한 플레이어 (선택, 인원 제한 없음)</label>
+          ${participantCheckboxes}
+        </div>
+        <div class="row">
+          <button type="submit" class="btn ${isKiller?'btn-killer':'btn-surv'}">${editing?'수정 저장':'기록 추가'}</button>
+          ${editing?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-edit-${role}">취소</button>`:''}
+        </div>
+      </form>
+      <div class="muted" style="margin-top:8px;">※ ${isKiller? '킬러/퍽 목록은 참고용 예시이며 자유롭게 입력할 수 있습니다. 킬 수는 해당 매치에서 발생한 킬 수를 뜻합니다.' : '생존자 기록은 캐릭터·킬 수 없이 결과와 퍽만 기록합니다.'}</div>
+    </div>`;
+
+    return `
+    <div class="card">
+      <h3>${isKiller?'킬러':'생존자'} 기록 검색</h3>
+      <input class="search-box" type="text" id="search-${role}" placeholder="플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
+    </div>
+    ${formSection}
+    <div class="card">
+      <h3>${isKiller?'킬러':'생존자'} 매치 로그 (${matches.length}건)</h3>
+      ${!allMatches.length ? `<div class="empty">아직 기록이 없습니다.</div>` :
+        !matches.length ? `<div class="empty">검색 결과가 없습니다.</div>` :
+        `<table><thead><tr><th>플레이어</th>${isKiller?'<th>킬러</th><th>킬</th>':''}<th>퍽</th><th>결과</th><th>날짜</th><th>참여 플레이어</th>${ui.isAdmin?'<th></th>':''}</tr></thead><tbody>${rows}</tbody></table>`}
+    </div>`;
+  }
+
+  function perkManagerHtml(kind){
+    const list = kind==='killer' ? store.killerPerks : store.survivorPerks;
+    const editingId = kind==='killer' ? ui.editingKillerPerkId : ui.editingSurvivorPerkId;
+    const editing = editingId ? list.find(p=>p.id===editingId) : null;
+    return `<div class="grow">
+      <h4 style="margin:0 0 8px; font-size:13px; color:var(--bone); font-weight:700;">${kind==='killer'?'킬러 퍽':'생존자 퍽'}</h4>
+      <form id="form-perk-${kind}">
+        <div class="row" style="align-items:flex-end; gap:10px; margin-bottom:10px;">
+          <div id="perk-avatar-preview-${kind}">${avatarBlock(editing?editing.avatar:null, editing?editing.name:'?', 40, '', 'square')}</div>
+          <div class="grow"><input type="text" id="perk-name-input-${kind}" value="${esc(editing?editing.name:'')}" placeholder="퍽 이름" required></div>
+          <div><input type="file" id="perk-avatar-input-${kind}" accept="image/*" style="max-width:150px;"></div>
+          <button type="submit" class="btn btn-sm">${editing?'수정 저장':'추가'}</button>
+          ${editing?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-perk-${kind}">취소</button>`:''}
+        </div>
+      </form>
+      <div class="row" style="gap:8px;">
+        ${list.length? list.map(p=>`<span class="roster-chip">${avatarBlock(p.avatar, p.name, 20, '', 'square')}<span>${esc(p.name)}</span>
+            <a class="linklike" data-edit-perk="${kind}:${p.id}">수정</a>
+            <a class="linklike" data-del-perk="${kind}:${p.id}">삭제</a>
+          </span>`).join('') : '<span class="muted">등록된 퍽이 없습니다.</span>'}
+      </div>
+    </div>`;
+  }
+
+  function adminHtml(){
+    const editingKp = ui.editingKillerProfileId ? (store.killers||[]).find(k=>k.id===ui.editingKillerProfileId) : null;
+    return `
+    ${SHARED_MODE==='github' ? `<div class="card" style="border-color:var(--good);">
+      <h3>✓ GitHub 저장소로 공유 저장 중</h3>
+      <div class="muted">이 사이트는 <b>${esc(GITHUB_OWNER)}/${esc(GITHUB_REPO)}</b> 저장소의 <code>${esc(GITHUB_DATA_PATH)}</code> 파일을 데이터로 사용합니다. 읽기는 누구나 가능하고, 새로고침하면 최신 기록을 볼 수 있습니다. 기록을 추가·수정하려면 이 브라우저에 GitHub 토큰이 저장되어 있어야 합니다.</div>
+    </div>` : ''}
+    <div class="card">
+      <h3>데이터 백업</h3>
+      <div class="row">
+        <button type="button" class="btn btn-sm" id="btn-export-data">내보내기 (JSON 다운로드)</button>
+        <label class="btn btn-sm" style="cursor:pointer; margin:0;">가져오기 (JSON 업로드)<input type="file" id="import-file-input" accept="application/json" style="display:none;"></label>
+      </div>
+      <div class="muted" style="margin-top:8px;">내보내기는 현재 모든 기록(선수, 매치 로그, 프로필 사진, 킬러/퍽 프로필 등)을 하나의 파일로 저장합니다. 가져오기는 현재 데이터를 그 파일 내용으로 완전히 덮어씁니다.</div>
+    </div>
+    <div class="card">
+      <h3>프로필 등록</h3>
+      <div class="row" style="align-items:flex-start; gap:18px;">
+        <div id="reg-avatar-preview">${avatarBlock(null, '?', 64)}</div>
+        <div class="grow">
+          <label>플레이어 이름</label>
+          <input list="dbd-players-list-reg" id="reg-name-input" type="text" placeholder="이름을 선택하거나 새로 입력">
+          ${datalist('dbd-players-list-reg', [], store.players)}
+          <div style="margin-top:10px;"><label>프로필 사진</label><input type="file" id="reg-avatar-input" accept="image/*"></div>
+          <button type="button" class="btn" id="btn-reg-save" style="margin-top:12px;">프로필 등록</button>
+        </div>
+      </div>
+      <div class="muted" style="margin-top:10px;">등록된 이름과 사진은 랭킹·기록 전체에 자동으로 연결됩니다. 사진을 다시 등록하면 즉시 갱신됩니다.</div>
+    </div>
+
+    <div class="card">
+      <h3>선수 관리</h3>
+      <div class="row">
+        <div class="grow"><input type="text" id="new-player-input" placeholder="새 선수 이름"></div>
+        <button class="btn" id="btn-add-player">선수 추가</button>
+      </div>
+      <div class="divider"></div>
+      <div class="row" style="gap:10px;">
+        ${store.players.length? store.players.map(p=>`
+          <span class="roster-chip">${avatarHtml(p, 22, false)}<span>${esc(p)}</span>
+            <a class="linklike" data-remove-player="${esc(p)}">삭제</a>
+          </span>`).join('') : '<span class="muted">등록된 선수가 없습니다.</span>'}
+      </div>
+      <div class="muted" style="margin-top:8px;">선수를 삭제해도 이미 기록된 매치 로그는 남습니다.</div>
+    </div>
+
+    <div class="card">
+      <h3>킬러 프로필 관리</h3>
+      <form id="form-killer-profile">
+        <div class="row" style="align-items:flex-end; gap:14px;">
+          <div id="kp-avatar-preview">${avatarBlock(editingKp?editingKp.avatar:null, editingKp?editingKp.name:'?', 56)}</div>
+          <div class="grow"><label>킬러 이름</label><input type="text" id="kp-name-input" value="${esc(editingKp?editingKp.name:'')}" required></div>
+          <div><label>사진</label><input type="file" id="kp-avatar-input" accept="image/*"></div>
+          <button type="submit" class="btn btn-killer">${editingKp?'수정 저장':'킬러 추가'}</button>
+          ${editingKp?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-kp">취소</button>`:''}
+        </div>
+      </form>
+      <div class="divider"></div>
+      <div class="row" style="gap:10px;">
+        ${(store.killers||[]).length? store.killers.map(k=>`
+          <span class="roster-chip">${avatarBlock(k.avatar, k.name, 22)}<span>${esc(k.name)}</span>
+            <a class="linklike" data-edit-killer-profile="${k.id}">수정</a>
+            <a class="linklike" data-del-killer-profile="${k.id}">삭제</a>
+          </span>`).join('') : '<span class="muted">등록된 킬러 프로필이 없습니다. 위 예시 목록은 자유 입력용 참고일 뿐, 사진을 넣으려면 여기서 등록해야 합니다.</span>'}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>퍽 관리</h3>
+      <div class="row" style="align-items:flex-start; gap:24px;">
+        ${perkManagerHtml('killer')}
+        ${perkManagerHtml('survivor')}
+      </div>
+      <div class="muted" style="margin-top:10px;">이름을 수정하거나 삭제해도 이미 기록된 매치 로그의 퍽 이름은 바뀌지 않습니다.</div>
+    </div>
+
+    ${SHARED_MODE==='github' ? `
+    <div class="card">
+      <h3>GitHub 접근 토큰</h3>
+      <div class="muted" style="margin-bottom:10px;">현재 이 브라우저에 저장된 토큰으로 쓰기 권한을 인증하고 있습니다. 토큰을 바꾸거나 다른 저장소로 옮기려면 아래에서 새 토큰을 등록하세요. 토큰은 이 브라우저에만 저장되고 사이트 파일에는 포함되지 않습니다.</div>
+      <div class="row">
+        <button type="button" class="btn btn-sm" id="btn-reset-token">새 토큰 등록</button>
+        <button type="button" class="btn btn-sm btn-danger" id="btn-clear-token">저장된 토큰 삭제</button>
+      </div>
+    </div>` : `
+    <div class="card">
+      <h3>관리자 비밀번호 변경</h3>
+      <form id="form-change-pw" class="row">
+        <div><label>현재 비밀번호</label><input type="password" name="cur" required></div>
+        <div><label>새 비밀번호</label><input type="password" name="next" required></div>
+        <button type="submit" class="btn" style="margin-top:18px;">변경</button>
+      </form>
+    </div>`}
+    <div class="muted">매치 기록 추가·수정·삭제는 상단의 "킬러 기록" / "생존자 기록" 탭에서 진행할 수 있습니다.</div>
+    `;
+  }
+
+  // ---------- events ----------
+  function bindEvents(){
+    const w = root();
+
+    const unlockBtn = w.querySelector('#btn-unlock');
+    if(unlockBtn) unlockBtn.onclick = onUnlock;
+    const lockBtn = w.querySelector('#btn-lock');
+    if(lockBtn) lockBtn.onclick = onLock;
+    const manualSaveBtn = w.querySelector('#btn-manual-save');
+    if(manualSaveBtn) manualSaveBtn.onclick = async ()=>{
+      manualSaveBtn.disabled = true;
+      manualSaveBtn.textContent = '저장 중...';
+      const ok = await saveStore();
+      manualSaveBtn.disabled = false;
+      manualSaveBtn.textContent = '저장';
+      if(ok) showToast('저장되었습니다.', false);
+    };
+
+    const exportBtn = w.querySelector('#btn-export-data');
+    if(exportBtn) exportBtn.onclick = ()=>{
+      try{
+        const blob = new Blob([JSON.stringify(store, null, 2)], { type:'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const stamp = new Date().toISOString().slice(0,10);
+        a.href = url;
+        a.download = `dbd-scrim-backup-${stamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('내보내기가 완료됐습니다.', false);
+      }catch(e){ console.error(e); showToast('내보내기에 실패했습니다.', true); }
+    };
+    const importInput = w.querySelector('#import-file-input');
+    if(importInput) importInput.addEventListener('change', ()=>{
+      const f = importInput.files[0];
+      if(!f) return;
+      if(!confirm('가져오면 현재 데이터를 완전히 덮어씁니다. 계속할까요?')){ importInput.value=''; return; }
+      const reader = new FileReader();
+      reader.onload = async ()=>{
+        try{
+          const parsed = JSON.parse(reader.result);
+          store = normalizeStore(parsed);
+          const ok = await saveStore();
+          showToast(ok? '가져오기가 완료됐습니다.' : '가져오기는 됐지만 저장에 실패했어요.', !ok);
+          render();
+        }catch(e){ console.error(e); showToast('파일을 읽지 못했습니다. 올바른 백업 파일인지 확인해 주세요.', true); }
+      };
+      reader.readAsText(f);
+    });
+
+    w.querySelectorAll('.tab').forEach(t=>{
+      t.onclick = ()=>{ ui.tab = t.dataset.tab; ui.viewingPlayer=null; render(); };
+    });
+
+    const backBtn = w.querySelector('#btn-back');
+    if(backBtn) backBtn.onclick = ()=>{ ui.tab = ui.returnTab || 'ranking'; ui.viewingPlayer=null; render(); };
+
+    w.querySelectorAll('[data-view-player]').forEach(el=>{
+      el.onclick = (e)=>{
+        e.stopPropagation();
+        const name = el.dataset.viewPlayer;
+        ui.returnTab = (ui.tab==='player') ? ui.returnTab : ui.tab;
+        ui.viewingPlayer = name;
+        ui.tab = 'player';
+        render();
+      };
+    });
+
+    // search inputs (keep focus while typing)
+    [['search-ranking','searchRanking'],['search-killer','searchKiller'],['search-survivor','searchSurvivor'],['search-balance','searchBalance']].forEach(([id,key])=>{
+      const el = w.querySelector('#'+id);
+      if(el) el.oninput = ()=>{ ui[key] = el.value; rerenderKeepFocus(); };
+    });
+
+    // profile registration (admin)
+    const regNameInput = w.querySelector('#reg-name-input');
+    const regFileInput = w.querySelector('#reg-avatar-input');
+    if(regNameInput){
+      regNameInput.addEventListener('change', ()=>{
+        const wrap = document.getElementById('reg-avatar-preview');
+        if(wrap) wrap.innerHTML = avatarBlock(store.avatars[regNameInput.value.trim()]||null, regNameInput.value.trim(), 64);
+      });
+    }
+    if(regFileInput){
+      regFileInput.addEventListener('change', ()=>{
+        const f = regFileInput.files[0];
+        if(!f) return;
+        const reader = new FileReader();
+        reader.onload = ()=>{ const wrap=document.getElementById('reg-avatar-preview'); if(wrap) wrap.innerHTML = `<img class="avatar" src="${reader.result}" width="64" height="64" alt="">`; };
+        reader.readAsDataURL(f);
+      });
+    }
+    const regSaveBtn = w.querySelector('#btn-reg-save');
+    if(regSaveBtn) regSaveBtn.onclick = async ()=>{
+      const name = regNameInput.value.trim();
+      if(!name){ alert('이름을 입력해 주세요.'); return; }
+      ensurePlayer(name);
+      if(regFileInput.files && regFileInput.files[0]){
+        try{ store.avatars[name] = await fileToCompressedDataUrl(regFileInput.files[0]); }
+        catch(err){ console.error(err); alert('이미지를 처리하지 못했습니다. 다른 이미지를 시도해 주세요.'); }
+      }
+      await saveStore();
+      render();
+    };
+
+    ['killer','survivor'].forEach(role=>{
+      const form = w.querySelector('#form-'+role);
+      if(form) form.onsubmit = (e)=> onSubmitMatch(e, role);
+      const cancel = w.querySelector('#cancel-edit-'+role);
+      if(cancel) cancel.onclick = ()=>{ if(role==='killer') ui.editingKillerId=null; else ui.editingSurvId=null; render(); };
+    });
+    w.querySelectorAll('[data-edit]').forEach(b=>{
+      b.onclick = ()=>{
+        const [role,id] = b.dataset.edit.split(':');
+        if(role==='killer') ui.editingKillerId=id; else ui.editingSurvId=id;
+        render();
+      };
+    });
+    w.querySelectorAll('[data-del]').forEach(b=>{
+      b.onclick = ()=> onDeleteMatch(b.dataset.del);
+    });
+
+    const addPlayerBtn = w.querySelector('#btn-add-player');
+    if(addPlayerBtn) addPlayerBtn.onclick = async ()=>{
+      const input = w.querySelector('#new-player-input');
+      const name = input.value.trim();
+      if(!name) return;
+      ensurePlayer(name);
+      await saveStore();
+      render();
+    };
+    w.querySelectorAll('[data-remove-player]').forEach(a=>{
+      a.onclick = async ()=>{
+        const name = a.dataset.removePlayer;
+        if(!confirm(`"${name}" 선수를 목록에서 삭제할까요? (기존 매치 기록은 유지됩니다)`)) return;
+        store.players = store.players.filter(p=>p!==name);
+        await saveStore();
+        render();
+      };
+    });
+
+    // killer profile CRUD
+    const kpForm = w.querySelector('#form-killer-profile');
+    if(kpForm) kpForm.onsubmit = onSubmitKillerProfile;
+    const kpFile = w.querySelector('#kp-avatar-input');
+    if(kpFile) kpFile.addEventListener('change', ()=>{
+      const f = kpFile.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{ const wrap=document.getElementById('kp-avatar-preview'); if(wrap) wrap.innerHTML = `<img class="avatar" src="${reader.result}" width="56" height="56" alt="">`; };
+      reader.readAsDataURL(f);
+    });
+    const cancelKp = w.querySelector('#cancel-kp');
+    if(cancelKp) cancelKp.onclick = ()=>{ ui.editingKillerProfileId=null; render(); };
+    w.querySelectorAll('[data-edit-killer-profile]').forEach(a=>{
+      a.onclick = ()=>{ ui.editingKillerProfileId = a.dataset.editKillerProfile; render(); };
+    });
+    w.querySelectorAll('[data-del-killer-profile]').forEach(a=>{
+      a.onclick = async ()=>{
+        if(!confirm('이 킬러 프로필을 삭제할까요?')) return;
+        store.killers = store.killers.filter(k=>k.id!==a.dataset.delKillerProfile);
+        await saveStore();
+        render();
+      };
+    });
+
+    // perk roster CRUD (with optional photo)
+    ['killer','survivor'].forEach(kind=>{
+      const form = w.querySelector('#form-perk-'+kind);
+      if(form) form.onsubmit = (e)=> onSubmitPerk(e, kind);
+      const fileInput = w.querySelector('#perk-avatar-input-'+kind);
+      if(fileInput) fileInput.addEventListener('change', ()=>{
+        const f = fileInput.files[0];
+        if(!f) return;
+        const reader = new FileReader();
+        reader.onload = ()=>{ const wrap=document.getElementById('perk-avatar-preview-'+kind); if(wrap) wrap.innerHTML = `<img class="avatar square" src="${reader.result}" width="40" height="40" alt="">`; };
+        reader.readAsDataURL(f);
+      });
+      const cancel = w.querySelector('#cancel-perk-'+kind);
+      if(cancel) cancel.onclick = ()=>{ if(kind==='killer') ui.editingKillerPerkId=null; else ui.editingSurvivorPerkId=null; render(); };
+    });
+    w.querySelectorAll('[data-edit-perk]').forEach(a=>{
+      a.onclick = ()=>{
+        const [kind,id] = a.dataset.editPerk.split(':');
+        if(kind==='killer') ui.editingKillerPerkId=id; else ui.editingSurvivorPerkId=id;
+        render();
+      };
+    });
+    w.querySelectorAll('[data-del-perk]').forEach(a=>{
+      a.onclick = async ()=>{
+        const [kind,id] = a.dataset.delPerk.split(':');
+        if(!confirm('이 퍽을 삭제할까요?')) return;
+        if(kind==='killer') store.killerPerks = store.killerPerks.filter(p=>p.id!==id);
+        else store.survivorPerks = store.survivorPerks.filter(p=>p.id!==id);
+        await saveStore();
+        render();
+      };
+    });
+
+    const pwForm = w.querySelector('#form-change-pw');
+    if(pwForm) pwForm.onsubmit = async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(pwForm);
+      const cur = fd.get('cur'), next = fd.get('next');
+      if(btoa(unescape(encodeURIComponent(cur))) !== store.adminHash){ alert('현재 비밀번호가 일치하지 않습니다.'); return; }
+      store.adminHash = btoa(unescape(encodeURIComponent(next)));
+      await saveStore();
+      alert('비밀번호가 변경되었습니다.');
+      pwForm.reset();
+    };
+
+    const resetTokenBtn = w.querySelector('#btn-reset-token');
+    if(resetTokenBtn) resetTokenBtn.onclick = async ()=>{
+      const token = prompt('새 GitHub Personal Access Token을 입력하세요.');
+      if(!token) return;
+      let ok = false;
+      try{ ok = await verifyGithubToken(token); }catch(e){ console.error(e); ok = false; }
+      if(!ok){ alert('토큰이 올바르지 않거나 저장소 접근 권한이 없습니다.'); return; }
+      localStorage.setItem(lsKey(GH_TOKEN_KEY, false), token);
+      showToast('토큰이 저장되었습니다.', false);
+    };
+    const clearTokenBtn = w.querySelector('#btn-clear-token');
+    if(clearTokenBtn) clearTokenBtn.onclick = ()=>{
+      if(!confirm('저장된 토큰을 삭제할까요? 이후 쓰기 작업 시 다시 입력해야 합니다.')) return;
+      localStorage.removeItem(lsKey(GH_TOKEN_KEY, false));
+      showToast('토큰이 삭제되었습니다.', false);
+    };
+  }
+
+  async function onSubmitPerk(e, kind){
+    e.preventDefault();
+    const nameInput = document.getElementById('perk-name-input-'+kind);
+    const fileInput = document.getElementById('perk-avatar-input-'+kind);
+    const name = nameInput.value.trim();
+    if(!name) return;
+    let avatarDataUrl = null;
+    if(fileInput.files && fileInput.files[0]){
+      try{ avatarDataUrl = await fileToCompressedDataUrl(fileInput.files[0]); }
+      catch(err){ console.error(err); alert('이미지를 처리하지 못했습니다.'); }
+    }
+    const list = kind==='killer' ? store.killerPerks : store.survivorPerks;
+    const editingId = kind==='killer' ? ui.editingKillerPerkId : ui.editingSurvivorPerkId;
+    if(editingId){
+      const idx = list.findIndex(p=>p.id===editingId);
+      if(idx>=0){ list[idx].name = name; if(avatarDataUrl) list[idx].avatar = avatarDataUrl; }
+      if(kind==='killer') ui.editingKillerPerkId=null; else ui.editingSurvivorPerkId=null;
+    } else {
+      list.push({ id: uid(), name, avatar: avatarDataUrl });
+    }
+    await saveStore();
+    render();
+  }
+
+  async function onSubmitKillerProfile(e){
+    e.preventDefault();
+    const nameInput = document.getElementById('kp-name-input');
+    const fileInput = document.getElementById('kp-avatar-input');
+    const name = nameInput.value.trim();
+    if(!name) return;
+    let avatarDataUrl = null;
+    if(fileInput.files && fileInput.files[0]){
+      try{ avatarDataUrl = await fileToCompressedDataUrl(fileInput.files[0]); }
+      catch(err){ console.error(err); alert('이미지를 처리하지 못했습니다.'); }
+    }
+    if(ui.editingKillerProfileId){
+      const idx = store.killers.findIndex(k=>k.id===ui.editingKillerProfileId);
+      if(idx>=0){ store.killers[idx].name = name; if(avatarDataUrl) store.killers[idx].avatar = avatarDataUrl; }
+      ui.editingKillerProfileId = null;
+    } else {
+      store.killers.push({ id: uid(), name, avatar: avatarDataUrl });
+    }
+    await saveStore();
+    render();
+  }
+
+  async function onSubmitMatch(e, role){
+    e.preventDefault();
+    const isKiller = role==='killer';
+    const fd = new FormData(e.target);
+    const player = (fd.get('player')||'').trim();
+    const roleVal = (fd.get('role')||'').trim();
+    if(!player) return;
+    if(isKiller && !roleVal) return;
+    ensurePlayer(player);
+    const perks = [0,1,2,3].map(i=> (fd.get('perk'+i)||'').trim()).filter(Boolean);
+    const resultRaw = fd.get('result');
+    const result = (resultRaw==='win'||resultRaw==='draw'||resultRaw==='lose') ? resultRaw : 'lose';
+    const participants = fd.getAll('participants').map(v=>v.trim()).filter(Boolean);
+    const record = {
+      player, result,
+      date: fd.get('date') || new Date().toISOString().slice(0,10),
+      perks,
+      participants,
+    };
+    if(isKiller){
+      record.killer = roleVal;
+      record.kills = Math.max(0, Math.min(4, parseInt(fd.get('kills'),10) || 0));
+    }
+
+    const list = isKiller ? store.killerMatches : store.survivorMatches;
+    const editingId = isKiller ? ui.editingKillerId : ui.editingSurvId;
+    if(editingId){
+      const idx = list.findIndex(m=>m.id===editingId);
+      if(idx>=0) list[idx] = {...list[idx], ...record};
+      if(isKiller) ui.editingKillerId=null; else ui.editingSurvId=null;
+    } else {
+      record.id = uid();
+      list.push(record);
+    }
+    await saveStore();
+    render();
+  }
+
+  async function onDeleteMatch(key){
+    const [role,id] = key.split(':');
+    if(!confirm('이 기록을 삭제할까요?')) return;
+    if(role==='killer') store.killerMatches = store.killerMatches.filter(m=>m.id!==id);
+    else store.survivorMatches = store.survivorMatches.filter(m=>m.id!==id);
+    await saveStore();
+    render();
+  }
+
+  async function onUnlock(){
+    if(SHARED_MODE==='github'){
+      const savedToken = localStorage.getItem(lsKey(GH_TOKEN_KEY, false));
+      if(savedToken){
+        ui.isAdmin = true;
+        await setPersonal(IS_ADMIN_KEY, 'true');
+        ui.tab = 'ranking';
+        render();
+        return;
+      }
+      const token = prompt('GitHub Personal Access Token을 입력하세요.\n(jambi-ws/jambi-dbd 저장소의 Contents 쓰기 권한이 있는 fine-grained 토큰)');
+      if(!token) return;
+      let ok = false;
+      try{ ok = await verifyGithubToken(token); }catch(e){ console.error(e); ok = false; }
+      if(!ok){ alert('토큰이 올바르지 않거나 저장소 접근 권한이 없습니다.'); return; }
+      localStorage.setItem(lsKey(GH_TOKEN_KEY, false), token);
+      ui.isAdmin = true;
+      await setPersonal(IS_ADMIN_KEY, 'true');
+      ui.tab = 'ranking';
+      render();
+      return;
+    }
+    // Claude artifact fallback: simple password gate
+    if(!store.adminHash){
+      const pw1 = prompt('아직 관리자 비밀번호가 설정되지 않았습니다.\\n새로 사용할 관리자 비밀번호를 입력하세요.');
+      if(!pw1) return;
+      store.adminHash = btoa(unescape(encodeURIComponent(pw1)));
+      await saveStore();
+      ui.isAdmin = true;
+      await setPersonal(IS_ADMIN_KEY, 'true');
+      ui.tab = 'ranking';
+      render();
+      return;
+    }
+    const pw = prompt('관리자 비밀번호를 입력하세요.');
+    if(pw===null) return;
+    if(btoa(unescape(encodeURIComponent(pw))) === store.adminHash){
+      ui.isAdmin = true;
+      await setPersonal(IS_ADMIN_KEY, 'true');
+      render();
+    } else {
+      alert('비밀번호가 올바르지 않습니다.');
+    }
+  }
+  async function onLock(){
+    ui.isAdmin = false;
+    ui.tab = 'ranking';
+    ui.viewingPlayer = null;
+    await setPersonal(IS_ADMIN_KEY, 'false');
+    render();
+  }
+
+  async function init(){
+    const loadResult = await loadStore();
+    store = loadResult.store;
+    if(!loadResult.loadedOk){
+      // Could not confirm the real remote state after retries — render with what we have,
+      // but do NOT seed/auto-save here, to avoid overwriting existing remote data.
+      showToast('저장된 기록을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.', true);
+      const savedAdmin = await getPersonal(IS_ADMIN_KEY);
+      ui.isAdmin = savedAdmin === 'true';
+      ui.tab = 'ranking';
+      render();
+      return;
+    }
+    let needsSave = false;
+    if(!store.killersSeeded){
+      const have = new Set(store.killers.map(k=>normSearch(k.name)));
+      KILLER_SEED.forEach(name=>{ if(!have.has(normSearch(name))){ store.killers.push({id:uid(), name, avatar:null}); have.add(normSearch(name)); } });
+      store.killersSeeded = true;
+      needsSave = true;
+    }
+    if(!store.perksSeeded){
+      const haveK = new Set(store.killerPerks.map(p=>normSearch(p.name)));
+      PERK_SEED.forEach(name=>{ if(!haveK.has(normSearch(name))){ store.killerPerks.push({id:uid(), name, avatar:null}); haveK.add(normSearch(name)); } });
+      const haveS = new Set(store.survivorPerks.map(p=>normSearch(p.name)));
+      PERK_SEED.forEach(name=>{ if(!haveS.has(normSearch(name))){ store.survivorPerks.push({id:uid(), name, avatar:null}); haveS.add(normSearch(name)); } });
+      store.perksSeeded = true;
+      needsSave = true;
+    }
+    if(needsSave) await saveStore();
+    const savedAdmin = await getPersonal(IS_ADMIN_KEY);
+    ui.isAdmin = savedAdmin === 'true';
+    ui.tab = 'ranking';
+    render();
+  }
+
+  init();
+})();
+</script>
