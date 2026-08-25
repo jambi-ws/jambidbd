@@ -175,6 +175,7 @@
     perkSelections:{},
     perkSearches:{},
     editingRoundId:null,
+    groupSelection:{ killer:[], survivor:[] },
     searchRounds:'',
   };
 
@@ -397,11 +398,11 @@
     const candidates = roster.filter(p=> matchesSearch(p.name, query) && !selected.includes(p.name));
     return `<div class="perk-picker">
       <div class="row" style="gap:6px; flex-wrap:wrap; margin-bottom:8px;">
-        ${selected.length ? selected.map(name=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(name,kind,15)}${esc(name)}<a data-perk-remove="${slotKey}|${esc(name)}" style="cursor:pointer; margin-left:2px; color:var(--bad); font-weight:700;">×</a></span>`).join('') : `<span class="muted">선택된 퍽 없음 (최대 4개)</span>`}
+        ${selected.length ? selected.map(name=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(name,kind,20)}${esc(name)}<a data-perk-remove="${slotKey}|${esc(name)}" style="cursor:pointer; margin-left:2px; color:var(--bad); font-weight:700;">×</a></span>`).join('') : `<span class="muted">선택된 퍽 없음 (최대 4개)</span>`}
       </div>
       <input type="text" class="search-box" id="perk-search-${slotKey}" placeholder="퍽 검색 (띄어쓰기 무관)" value="${esc(query)}" style="max-width:240px;">
       <div class="row" style="gap:5px; flex-wrap:wrap; margin-top:8px; max-height:120px; overflow-y:auto;">
-        ${candidates.length ? candidates.slice(0,40).map(p=>`<span class="perk-tag" data-perk-add="${slotKey}|${esc(p.name)}|${kind}" style="cursor:pointer; display:inline-flex; align-items:center; gap:4px;">${avatarBlock(p.avatar,p.name,15,'','square')}${esc(p.name)}</span>`).join('') : `<span class="muted">검색 결과 없음</span>`}
+        ${candidates.length ? candidates.slice(0,40).map(p=>`<span class="perk-tag" data-perk-add="${slotKey}|${esc(p.name)}|${kind}" style="cursor:pointer; display:inline-flex; align-items:center; gap:4px;">${avatarBlock(p.avatar,p.name,20,'','square')}${esc(p.name)}</span>`).join('') : `<span class="muted">검색 결과 없음</span>`}
       </div>
     </div>`;
   }
@@ -489,6 +490,19 @@
     }
   }
 
+  // Rebuilding the DOM on every keystroke (rerenderKeepFocus) breaks IME composition
+  // for Korean/Japanese/Chinese input — mid-syllable input events would tear down the
+  // input element while the browser is still composing a character (e.g. "정" would
+  // render as "ㅈㅓㅇ"). Fix: while composing, only update state — don't touch the DOM.
+  // Once composition ends, do the real update/re-render.
+  function bindLiveSearchInput(el, onChange){
+    if(!el) return;
+    let composing = false;
+    el.addEventListener('compositionstart', ()=>{ composing = true; });
+    el.addEventListener('compositionend', ()=>{ composing = false; onChange(el.value); });
+    el.addEventListener('input', ()=>{ if(!composing) onChange(el.value); });
+  }
+
   function headerHtml(){
     return `<div class="dbd-header">
       <h1 class="dbd-title">데바데 내전 기록실<small>Killer / Survivor 전적 · 랭킹</small></h1>
@@ -564,11 +578,11 @@
     return `<div class="row" style="gap:26px; align-items:flex-start;">
       <div class="grow">
         <div class="muted" style="margin-bottom:6px;">1:1 맞밸런스 상대</div>
-        ${b.best ? `<div class="row" style="gap:8px; align-items:center;">${playerCellHtml(b.best.name,28,true)}<span class="mono">${pct(b.bestDiff)}%p 차이</span></div>` : `<span class="muted">비교할 다른 선수가 없습니다.</span>`}
+        ${b.best ? `<div class="row" style="gap:8px; align-items:center;">${playerCellHtml(b.best.name,32,true)}<span class="mono">${pct(b.bestDiff)}%p 차이</span></div>` : `<span class="muted">비교할 다른 선수가 없습니다.</span>`}
       </div>
       <div class="grow">
         <div class="muted" style="margin-bottom:6px;">그룹 맞밸런스</div>
-        ${b.bestGroup ? `<div class="row" style="gap:6px; align-items:center; flex-wrap:wrap;">${b.bestGroup.map(g=>playerCellHtml(g.name,22,true)).join('')}<span class="mono">${pct(b.bestGroupDiff)}%p 차이</span></div>` : `<span class="muted">그룹으로 묶을 낮은 승률의 선수가 부족합니다.</span>`}
+        ${b.bestGroup ? `<div class="row" style="gap:6px; align-items:center; flex-wrap:wrap;">${b.bestGroup.map(g=>playerCellHtml(g.name,26,true)).join('')}<span class="mono">${pct(b.bestGroupDiff)}%p 차이</span></div>` : `<span class="muted">그룹으로 묶을 낮은 승률의 선수가 부족합니다.</span>`}
       </div>
     </div>`;
   }
@@ -586,7 +600,7 @@
       !filtered.length ? `<div class="card"><div class="empty">검색 결과가 없습니다.</div></div>` :
       filtered.map((p,i)=>`<div class="card">
         <div class="row" style="justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:10px;">
-          ${playerCellHtml(p.name, 32, true)}
+          ${playerCellHtml(p.name, 34, true)}
           <span class="muted mono">전체 승률 ${pct(p.overallRate)}%</span>
         </div>
         ${balanceInfoHtml(p.name, board)}
@@ -607,7 +621,7 @@
           <tbody>
           ${board.map(p=>{ const i = all.indexOf(p); return `<tr class="clickable" data-view-player="${esc(p.name)}">
             <td><div class="rank-badge ${rankBadgeClass(i)}">${i+1}</div></td>
-            <td>${playerCellHtml(p.name, 26, false)}</td>
+            <td>${playerCellHtml(p.name, 30, false)}</td>
             <td class="mono">${p.totalMatches}</td>
             <td class="mono"><span class="win">${p.wins}</span> / <span class="draw">${p.draws}</span> / <span class="lose">${p.losses}</span></td>
             <td class="mono">${p.totalMatches? pct(p.overallRate)+'%':'-'}</td>
@@ -660,14 +674,14 @@
       <div class="row" style="gap:26px; align-items:flex-start;">
         <div class="grow">
           <h3>자주 사용한 킬러</h3>
-          ${freqListHtml(p.topKillers, n=>killerAvatarHtml(n,22))}
+          ${freqListHtml(p.topKillers, n=>killerAvatarHtml(n,26))}
           <div class="divider"></div>
           <h3>자주 사용한 킬러 퍽</h3>
-          ${freqListHtml(p.topKillerPerks, n=>perkAvatarHtml(n,'killer',18))}
+          ${freqListHtml(p.topKillerPerks, n=>perkAvatarHtml(n,'killer',22))}
         </div>
         <div class="grow">
           <h3>자주 사용한 생존자 퍽</h3>
-          ${freqListHtml(p.topSurvPerks, n=>perkAvatarHtml(n,'survivor',18))}
+          ${freqListHtml(p.topSurvPerks, n=>perkAvatarHtml(n,'survivor',22))}
         </div>
       </div>
     </div>
@@ -709,12 +723,12 @@
       <div class="row" style="justify-content:space-between; align-items:center; gap:10px; background:var(--killer-dim); border:1px solid var(--killer); border-radius:4px; padding:8px 12px;">
         <div class="row" style="gap:10px;">
           <span class="muted" style="font-size:11px;">킬러</span>
-          ${playerCellHtml(round.killer.player, 24, true)}
-          <span class="player-cell">${killerAvatarHtml(round.killer.killer,20)}<span>${esc(round.killer.killer||'-')}</span></span>
+          ${playerCellHtml(round.killer.player, 28, true)}
+          <span class="player-cell">${killerAvatarHtml(round.killer.killer,24)}<span>${esc(round.killer.killer||'-')}</span></span>
           <span class="mono">${round.killer.kills!=null? round.killer.kills+'킬':'-'}</span>
         </div>
         <div class="row" style="gap:8px; align-items:center;">
-          ${(round.killer.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'killer',13)}${esc(p)}</span>`).join('')}
+          ${(round.killer.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'killer',16)}${esc(p)}</span>`).join('')}
           <span class="${round.killer.result==='win'?'win':round.killer.result==='draw'?'draw':'lose'}">${kResultLabels[round.killer.result]||kResultLabels.lose}</span>
         </div>
       </div>` : `<div class="muted" style="padding:6px 0;">킬러 기록 없음</div>`;
@@ -722,10 +736,10 @@
       <div class="row" style="justify-content:space-between; align-items:center; gap:10px; background:var(--surv-dim); border:1px solid var(--surv); border-radius:4px; padding:8px 12px; margin-top:6px;">
         <div class="row" style="gap:10px;">
           <span class="muted" style="font-size:11px;">생존자</span>
-          ${playerCellHtml(s.player, 24, true)}
+          ${playerCellHtml(s.player, 28, true)}
         </div>
         <div class="row" style="gap:8px; align-items:center;">
-          ${(s.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'survivor',13)}${esc(p)}</span>`).join('')}
+          ${(s.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'survivor',16)}${esc(p)}</span>`).join('')}
           <span class="${s.result==='win'?'win':s.result==='draw'?'draw':'lose'}">${sResultLabels[s.result]||sResultLabels.lose}</span>
         </div>
       </div>`).join('');
@@ -820,13 +834,14 @@
 
     const rows = [...matches].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).map(m=>`
       <tr>
-        <td>${playerCellHtml(m.player, 24, true)}</td>
-        ${isKiller ? `<td><span class="player-cell">${killerAvatarHtml(m.killer,22)}<span>${esc(m.killer||'-')}</span></span></td>` : ''}
+        ${ui.isAdmin? `<td>${m.roundId? `<span class="muted" title="이미 라운드에 포함됨">✓</span>` : `<input type="checkbox" data-group-select="${role}:${m.id}" ${ui.groupSelection[role].includes(m.id)?'checked':''}>`}</td>` : ''}
+        <td>${playerCellHtml(m.player, 30, true)}</td>
+        ${isKiller ? `<td><span class="player-cell">${killerAvatarHtml(m.killer,28)}<span>${esc(m.killer||'-')}</span></span></td>` : ''}
         ${isKiller ? `<td class="mono">${m.kills!=null? m.kills+'킬' : '-'}</td>` : ''}
-        <td>${(m.perks||[]).filter(Boolean).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(p, role, 15)}${esc(p)}</span>`).join('')||'<span class="muted">-</span>'}</td>
+        <td>${(m.perks||[]).filter(Boolean).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(p, role, 20)}${esc(p)}</span>`).join('')||'<span class="muted">-</span>'}</td>
         <td class="${m.result==='win'?'win':m.result==='draw'?'draw':'lose'}">${resultLabels[m.result]||resultLabels.lose}</td>
         <td class="mono">${esc(m.date||'')}</td>
-        <td>${(m.participants||[]).length? `<span class="row" style="gap:4px;">${(m.participants||[]).map(pn=>playerCellHtml(pn,18,true)).join('')}</span>` : '<span class="muted">-</span>'}</td>
+        <td>${(m.participants||[]).length? `<span class="row" style="gap:4px;">${(m.participants||[]).map(pn=>playerCellHtml(pn,24,true)).join('')}</span>` : '<span class="muted">-</span>'}</td>
         ${ui.isAdmin? `<td class="row" style="gap:4px;">
           <button class="btn btn-sm" data-edit="${role}:${m.id}">수정</button>
           <button class="btn btn-sm btn-danger" data-del="${role}:${m.id}">삭제</button>
@@ -836,7 +851,7 @@
     const editingParticipants = editing && editing.participants ? editing.participants : [];
     const participantCheckboxes = store.players.length ? `<div class="row" style="gap:10px; flex-wrap:wrap;">${store.players.map(pn=>`
       <label style="display:flex; align-items:center; gap:5px; text-transform:none; font-size:12.5px; color:var(--bone); cursor:pointer; white-space:nowrap;">
-        <input type="checkbox" name="participants" value="${esc(pn)}" ${editingParticipants.includes(pn)?'checked':''}> ${playerCellHtml(pn,18,false)}
+        <input type="checkbox" name="participants" value="${esc(pn)}" ${editingParticipants.includes(pn)?'checked':''}> ${playerCellHtml(pn,22,false)}
       </label>`).join('')}</div>` : `<span class="muted">등록된 선수가 없습니다.</span>`;
 
     const formSection = !ui.isAdmin ? '' : `
@@ -872,17 +887,29 @@
       <div class="muted" style="margin-top:8px;">※ ${isKiller? '킬러 이름은 참고용 예시이며 자유롭게 입력할 수 있습니다. 킬 수는 해당 매치에서 발생한 킬 수를 뜻합니다.' : '생존자 기록은 캐릭터·킬 수 없이 결과와 퍽만 기록합니다.'}</div>
     </div>`;
 
+    const groupBar = !ui.isAdmin ? '' : `
+    <div class="card">
+      <h3>기존 기록을 그룹으로 묶기</h3>
+      <div class="muted" style="margin-bottom:8px;">아래 매치 로그에서 같은 판(라운드)에 속하는 킬러·생존자 기록의 체크박스를 선택한 뒤 묶으면, "라운드 기록" 탭에서 한 카드로 함께 볼 수 있습니다. 이미 라운드에 포함된 기록(✓ 표시)은 다시 선택할 수 없습니다.</div>
+      <div class="row" style="gap:10px; align-items:center;">
+        <span class="muted">선택됨: 킬러 ${ui.groupSelection.killer.length}개, 생존자 ${ui.groupSelection.survivor.length}개</span>
+        <button type="button" class="btn btn-sm btn-killer" id="btn-group-selected">선택한 기록 그룹으로 묶기</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="btn-group-clear">선택 초기화</button>
+      </div>
+    </div>`;
+
     return `
     <div class="card">
       <h3>${isKiller?'킬러':'생존자'} 기록 검색</h3>
       <input class="search-box" type="text" id="search-${role}" placeholder="플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
     </div>
     ${formSection}
+    ${groupBar}
     <div class="card">
       <h3>${isKiller?'킬러':'생존자'} 매치 로그 (${matches.length}건)</h3>
       ${!allMatches.length ? `<div class="empty">아직 기록이 없습니다.</div>` :
         !matches.length ? `<div class="empty">검색 결과가 없습니다.</div>` :
-        `<table><thead><tr><th>플레이어</th>${isKiller?'<th>킬러</th><th>킬</th>':''}<th>퍽</th><th>결과</th><th>날짜</th><th>참여 플레이어</th>${ui.isAdmin?'<th></th>':''}</tr></thead><tbody>${rows}</tbody></table>`}
+        `<table><thead><tr>${ui.isAdmin?'<th></th>':''}<th>플레이어</th>${isKiller?'<th>킬러</th><th>킬</th>':''}<th>퍽</th><th>결과</th><th>날짜</th><th>참여 플레이어</th>${ui.isAdmin?'<th></th>':''}</tr></thead><tbody>${rows}</tbody></table>`}
     </div>`;
   }
 
@@ -1077,16 +1104,16 @@
       };
     });
 
-    // search inputs (keep focus while typing)
+    // search inputs (keep focus while typing; IME-safe for Korean input)
     [['search-ranking','searchRanking'],['search-killer','searchKiller'],['search-survivor','searchSurvivor'],['search-balance','searchBalance'],['search-rounds','searchRounds']].forEach(([id,key])=>{
       const el = w.querySelector('#'+id);
-      if(el) el.oninput = ()=>{ ui[key] = el.value; rerenderKeepFocus(); };
+      bindLiveSearchInput(el, (val)=>{ ui[key] = val; rerenderKeepFocus(); });
     });
 
-    // perk picker (search-as-you-type, click to add/remove)
+    // perk picker (search-as-you-type, click to add/remove; IME-safe)
     w.querySelectorAll('[id^="perk-search-"]').forEach(el=>{
       const slotKey = el.id.replace('perk-search-','');
-      el.oninput = ()=>{ ui.perkSearches[slotKey] = el.value; rerenderKeepFocus(); };
+      bindLiveSearchInput(el, (val)=>{ ui.perkSearches[slotKey] = val; rerenderKeepFocus(); });
     });
     w.querySelectorAll('[data-perk-add]').forEach(el=>{
       el.onclick = ()=>{
@@ -1199,6 +1226,36 @@
         render();
       };
     });
+
+    // grouping existing individual records into a round
+    w.querySelectorAll('[data-group-select]').forEach(cb=>{
+      cb.onchange = ()=>{
+        const [role,id] = cb.dataset.groupSelect.split(':');
+        const arr = ui.groupSelection[role];
+        const idx = arr.indexOf(id);
+        if(cb.checked){ if(idx<0) arr.push(id); }
+        else { if(idx>=0) arr.splice(idx,1); }
+      };
+    });
+    const groupBtn = w.querySelector('#btn-group-selected');
+    if(groupBtn) groupBtn.onclick = async ()=>{
+      const kIds = ui.groupSelection.killer;
+      const sIds = ui.groupSelection.survivor;
+      if(kIds.length===0 && sIds.length===0){ showToast('선택된 기록이 없습니다.', true); return; }
+      if(kIds.length>1){ alert('킬러는 한 라운드에 한 명만 그룹으로 묶을 수 있습니다.'); return; }
+      const roundId = uid();
+      store.killerMatches.forEach(m=>{ if(kIds.includes(m.id)) m.roundId = roundId; });
+      store.survivorMatches.forEach(m=>{ if(sIds.includes(m.id)) m.roundId = roundId; });
+      ui.groupSelection = { killer:[], survivor:[] };
+      await saveStore();
+      showToast('선택한 기록을 그룹으로 묶었습니다. "라운드 기록" 탭에서 확인하세요.', false);
+      render();
+    };
+    const groupClearBtn = w.querySelector('#btn-group-clear');
+    if(groupClearBtn) groupClearBtn.onclick = ()=>{
+      ui.groupSelection = { killer:[], survivor:[] };
+      render();
+    };
 
     const addPlayerBtn = w.querySelector('#btn-add-player');
     if(addPlayerBtn) addPlayerBtn.onclick = async ()=>{
