@@ -177,6 +177,7 @@
     editingRoundId:null,
     groupSelection:{ killer:[], survivor:[] },
     searchRounds:'',
+    searchUngrouped:'',
   };
 
   function root(){ return document.getElementById('dbd-root'); }
@@ -449,8 +450,25 @@
       topSurvPerks: topPerkFreq(s.matches,5),
     };
   }
+  // Raw win% alone unfairly rewards tiny sample sizes (1 game at 100% would outrank
+  // 100 games at 86%). Wilson score lower bound gives a conservative, sample-size-aware
+  // estimate for ranking purposes, while the displayed win% stays the plain raw value.
+  function wilsonLowerBound(wins, total){
+    if(total<=0) return 0;
+    const z = 1.96; // ~95% confidence
+    const n = total;
+    const phat = wins / n;
+    const denom = 1 + (z*z)/n;
+    const centre = phat + (z*z)/(2*n);
+    const margin = z * Math.sqrt((phat*(1-phat) + (z*z)/(4*n)) / n);
+    return (centre - margin) / denom;
+  }
   function ranking(){
-    return store.players.map(summaryFor).filter(p=>p.totalMatches>0).sort((a,b)=> b.overallRate - a.overallRate || b.totalMatches - a.totalMatches);
+    return store.players.map(summaryFor).filter(p=>p.totalMatches>0).sort((a,b)=>{
+      const wa = wilsonLowerBound(a.wins, a.totalMatches);
+      const wb = wilsonLowerBound(b.wins, b.totalMatches);
+      return wb - wa || b.totalMatches - a.totalMatches;
+    });
   }
   function rankBadgeClass(i){ return i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'; }
 
@@ -808,12 +826,61 @@
       <div class="muted" style="margin-top:8px;">※ 생존자 슬롯 중 플레이어를 비워두면 그 슬롯은 저장되지 않습니다. 킬러도 비워두면 기록되지 않습니다.</div>
     </div>`;
 
+    const ungroupedSection = !ui.isAdmin ? '' : (()=>{
+      const uQuery = ui.searchUngrouped;
+      const ungroupedKillers = store.killerMatches.filter(m=>!m.roundId && matchesSearch(m.player, uQuery));
+      const ungroupedSurvivors = store.survivorMatches.filter(m=>!m.roundId && matchesSearch(m.player, uQuery));
+      const kResultLabels = resultLabelsFor(true);
+      const sResultLabels = resultLabelsFor(false);
+      const killerRows = ungroupedKillers.map(m=>`
+        <label class="row" style="gap:10px; align-items:center; background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:7px 10px; cursor:pointer;">
+          <input type="checkbox" data-group-select="killer:${m.id}" ${ui.groupSelection.killer.includes(m.id)?'checked':''}>
+          ${playerCellHtml(m.player, 24, false)}
+          <span class="player-cell">${killerAvatarHtml(m.killer,22)}<span>${esc(m.killer||'-')}</span></span>
+          <span class="mono">${m.kills!=null? m.kills+'킬':'-'}</span>
+          <span class="${m.result==='win'?'win':m.result==='draw'?'draw':'lose'}">${kResultLabels[m.result]||kResultLabels.lose}</span>
+          <span class="mono muted">${esc(m.date||'')}</span>
+        </label>`).join('');
+      const survivorRows = ungroupedSurvivors.map(m=>`
+        <label class="row" style="gap:10px; align-items:center; background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:7px 10px; cursor:pointer;">
+          <input type="checkbox" data-group-select="survivor:${m.id}" ${ui.groupSelection.survivor.includes(m.id)?'checked':''}>
+          ${playerCellHtml(m.player, 24, false)}
+          <span class="${m.result==='win'?'win':m.result==='draw'?'draw':'lose'}">${sResultLabels[m.result]||sResultLabels.lose}</span>
+          <span class="mono muted">${esc(m.date||'')}</span>
+        </label>`).join('');
+      return `<div class="card">
+        <h3>묶이지 않은 기록으로 라운드 만들기</h3>
+        <input class="search-box" type="text" id="search-ungrouped" placeholder="선수 이름 검색 (띄어쓰기 무관)" value="${esc(uQuery)}">
+        <div class="muted" style="margin:8px 0;">아직 라운드로 묶이지 않은 킬러·생존자 기록만 아래에 나열됩니다. 같은 판에 속하는 킬러 1명(선택)과 생존자(여러 명 가능)를 체크한 뒤 묶으면, 위 라운드 카드로 합쳐집니다.</div>
+        <div class="row" style="gap:20px; align-items:flex-start;">
+          <div class="grow">
+            <div class="muted" style="margin-bottom:6px;">킬러 기록 (${ungroupedKillers.length}건, 최대 1명 선택)</div>
+            <div class="row" style="flex-direction:column; gap:6px; align-items:stretch; max-height:280px; overflow-y:auto;">
+              ${killerRows || `<span class="muted">묶이지 않은 킬러 기록이 없습니다.</span>`}
+            </div>
+          </div>
+          <div class="grow">
+            <div class="muted" style="margin-bottom:6px;">생존자 기록 (${ungroupedSurvivors.length}건)</div>
+            <div class="row" style="flex-direction:column; gap:6px; align-items:stretch; max-height:280px; overflow-y:auto;">
+              ${survivorRows || `<span class="muted">묶이지 않은 생존자 기록이 없습니다.</span>`}
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px; gap:10px; align-items:center;">
+          <span class="muted">선택됨: 킬러 ${ui.groupSelection.killer.length}개, 생존자 ${ui.groupSelection.survivor.length}개</span>
+          <button type="button" class="btn btn-sm btn-killer" id="btn-group-selected">선택한 기록 그룹으로 묶기</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btn-group-clear">선택 초기화</button>
+        </div>
+      </div>`;
+    })();
+
     return `<div class="card">
       <h3>라운드 기록 검색</h3>
       <input class="search-box" type="text" id="search-rounds" placeholder="참여 플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
       <div class="muted" style="margin-top:8px;">한 판(라운드)에 참여한 킬러 1명과 생존자 최대 4명의 기록을 한 카드에서 볼 수 있습니다. "킬러 기록"/"생존자 기록" 탭에서 개별로 추가한 기록은 여기 표시되지 않습니다.</div>
     </div>
     ${formSection}
+    ${ungroupedSection}
     ${!allRounds.length ? `<div class="card"><div class="empty">아직 라운드 기록이 없습니다.</div></div>` :
       !rounds.length ? `<div class="card"><div class="empty">검색 결과가 없습니다.</div></div>` :
       rounds.map(roundCardHtml).join('')}`;
@@ -834,7 +901,6 @@
 
     const rows = [...matches].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).map(m=>`
       <tr>
-        ${ui.isAdmin? `<td>${m.roundId? `<span class="muted" title="이미 라운드에 포함됨">✓</span>` : `<input type="checkbox" data-group-select="${role}:${m.id}" ${ui.groupSelection[role].includes(m.id)?'checked':''}>`}</td>` : ''}
         <td>${playerCellHtml(m.player, 30, true)}</td>
         ${isKiller ? `<td><span class="player-cell">${killerAvatarHtml(m.killer,28)}<span>${esc(m.killer||'-')}</span></span></td>` : ''}
         ${isKiller ? `<td class="mono">${m.kills!=null? m.kills+'킬' : '-'}</td>` : ''}
@@ -887,29 +953,17 @@
       <div class="muted" style="margin-top:8px;">※ ${isKiller? '킬러 이름은 참고용 예시이며 자유롭게 입력할 수 있습니다. 킬 수는 해당 매치에서 발생한 킬 수를 뜻합니다.' : '생존자 기록은 캐릭터·킬 수 없이 결과와 퍽만 기록합니다.'}</div>
     </div>`;
 
-    const groupBar = !ui.isAdmin ? '' : `
-    <div class="card">
-      <h3>기존 기록을 그룹으로 묶기</h3>
-      <div class="muted" style="margin-bottom:8px;">아래 매치 로그에서 같은 판(라운드)에 속하는 킬러·생존자 기록의 체크박스를 선택한 뒤 묶으면, "라운드 기록" 탭에서 한 카드로 함께 볼 수 있습니다. 이미 라운드에 포함된 기록(✓ 표시)은 다시 선택할 수 없습니다.</div>
-      <div class="row" style="gap:10px; align-items:center;">
-        <span class="muted">선택됨: 킬러 ${ui.groupSelection.killer.length}개, 생존자 ${ui.groupSelection.survivor.length}개</span>
-        <button type="button" class="btn btn-sm btn-killer" id="btn-group-selected">선택한 기록 그룹으로 묶기</button>
-        <button type="button" class="btn btn-sm btn-ghost" id="btn-group-clear">선택 초기화</button>
-      </div>
-    </div>`;
-
     return `
     <div class="card">
       <h3>${isKiller?'킬러':'생존자'} 기록 검색</h3>
       <input class="search-box" type="text" id="search-${role}" placeholder="플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
     </div>
     ${formSection}
-    ${groupBar}
     <div class="card">
       <h3>${isKiller?'킬러':'생존자'} 매치 로그 (${matches.length}건)</h3>
       ${!allMatches.length ? `<div class="empty">아직 기록이 없습니다.</div>` :
         !matches.length ? `<div class="empty">검색 결과가 없습니다.</div>` :
-        `<table><thead><tr>${ui.isAdmin?'<th></th>':''}<th>플레이어</th>${isKiller?'<th>킬러</th><th>킬</th>':''}<th>퍽</th><th>결과</th><th>날짜</th><th>참여 플레이어</th>${ui.isAdmin?'<th></th>':''}</tr></thead><tbody>${rows}</tbody></table>`}
+        `<table><thead><tr><th>플레이어</th>${isKiller?'<th>킬러</th><th>킬</th>':''}<th>퍽</th><th>결과</th><th>날짜</th><th>참여 플레이어</th>${ui.isAdmin?'<th></th>':''}</tr></thead><tbody>${rows}</tbody></table>`}
     </div>`;
   }
 
@@ -1105,7 +1159,7 @@
     });
 
     // search inputs (keep focus while typing; IME-safe for Korean input)
-    [['search-ranking','searchRanking'],['search-killer','searchKiller'],['search-survivor','searchSurvivor'],['search-balance','searchBalance'],['search-rounds','searchRounds']].forEach(([id,key])=>{
+    [['search-ranking','searchRanking'],['search-killer','searchKiller'],['search-survivor','searchSurvivor'],['search-balance','searchBalance'],['search-rounds','searchRounds'],['search-ungrouped','searchUngrouped']].forEach(([id,key])=>{
       const el = w.querySelector('#'+id);
       bindLiveSearchInput(el, (val)=>{ ui[key] = val; rerenderKeepFocus(); });
     });
