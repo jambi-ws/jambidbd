@@ -131,6 +131,14 @@
   .freq-row{ display:flex; align-items:center; gap:8px; justify-content:space-between; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; padding:7px 11px; font-size:12.5px;}
   .freq-row .freq-left{ display:flex; align-items:center; gap:8px; }
   .roster-chip{ display:flex; align-items:center; gap:7px; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:4px 10px 4px 4px; white-space:nowrap; }
+  .tier-row{ display:flex; align-items:stretch; border:1px solid var(--line); border-radius:5px; overflow:hidden; margin-bottom:6px; min-height:76px; }
+  .tier-label{ flex:0 0 88px; display:flex; align-items:center; justify-content:center; text-align:center; font-family:'Noto Sans KR',sans-serif; font-weight:800; font-size:15px; color:#141414; padding:6px; word-break:keep-word; position:relative; }
+  .tier-dropzone{ flex:1; background:var(--panel); display:flex; flex-wrap:wrap; align-items:flex-start; align-content:flex-start; gap:10px; padding:10px; min-height:76px; transition:background .12s; }
+  .tier-dropzone.drop-hover{ background:var(--entity-dim); }
+  .tier-item{ display:flex; flex-direction:column; align-items:center; gap:3px; width:60px; cursor:grab; user-select:none; }
+  .tier-item.selected .avatar, .tier-item.selected .avatar-fallback{ outline:3px solid var(--entity); outline-offset:2px; }
+  .tier-item span{ font-size:10.5px; color:var(--bone); text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tier-row-edit{ flex:0 0 auto; display:flex; flex-direction:column; gap:2px; justify-content:center; padding:4px 6px; }
   .dbd-toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); color:var(--bone); padding:10px 16px; border-radius:6px; font-size:12.5px; opacity:0; pointer-events:none; transition:opacity .25s; z-index:9999; }
   .dbd-toast.error{ border-color:var(--bad); color:#f6c7c3; }
   @media (max-width:520px){ .dbd-title{ font-size:20px; } }
@@ -178,6 +186,8 @@
     groupSelection:{ killer:[], survivor:[] },
     searchRounds:'',
     searchUngrouped:'',
+    tierSelectedPlayer:null,
+    editingTierRowId:null,
   };
 
   function root(){ return document.getElementById('dbd-root'); }
@@ -260,7 +270,7 @@
     return { key, value, shared: !!shared };
   }
 
-  function defaultStore(){ return { players:[], avatars:{}, killers:[], killerPerks:[], survivorPerks:[], killersSeeded:false, perksSeeded:false, killerMatches:[], survivorMatches:[], adminHash:null }; }
+  function defaultStore(){ return { players:[], avatars:{}, killers:[], killerPerks:[], survivorPerks:[], killersSeeded:false, perksSeeded:false, killerMatches:[], survivorMatches:[], adminHash:null, tierRows:[], tierAssignments:{}, tierRowsSeeded:false }; }
 
   function normalizeStore(s){
     if(!s.avatars) s.avatars = {};
@@ -269,6 +279,9 @@
     if(!s.survivorPerks) s.survivorPerks = [];
     if(typeof s.killersSeeded !== 'boolean') s.killersSeeded = false;
     if(typeof s.perksSeeded !== 'boolean') s.perksSeeded = false;
+    if(!s.tierRows) s.tierRows = [];
+    if(!s.tierAssignments) s.tierAssignments = {};
+    if(typeof s.tierRowsSeeded !== 'boolean') s.tierRowsSeeded = false;
     return s;
   }
   async function loadStore(){
@@ -533,7 +546,7 @@
   }
 
   function tabsHtml(){
-    const tabs = [['ranking','랭킹'],['balance','맞밸런스'],['rounds','라운드 기록'],['killer','킬러 기록'],['survivor','생존자 기록']];
+    const tabs = [['ranking','랭킹'],['tier','티어표'],['balance','맞밸런스'],['rounds','라운드 기록'],['killer','킬러 기록'],['survivor','생존자 기록']];
     if(ui.isAdmin) tabs.push(['admin','관리']);
     return `<div class="tabs">${tabs.map(([id,label])=>`<div class="tab ${ui.tab===id?'active':''}" data-tab="${id}">${label}</div>`).join('')}</div>`;
   }
@@ -542,6 +555,7 @@
     if(ui.tab==='player' && ui.viewingPlayer) return playerDetailHtml(ui.viewingPlayer);
     switch(ui.tab){
       case 'ranking': return rankingHtml();
+      case 'tier': return tierHtml();
       case 'balance': return balanceHtml();
       case 'rounds': return roundsHtml();
       case 'killer': return roleHtml('killer');
@@ -799,6 +813,68 @@
       </div>
       <label>퍽 (최대 4개)</label>
       ${perkPickerHtml(slotKey, isKillerSlot?'killer':'survivor')}
+    </div>`;
+  }
+
+  function tierItemHtml(name, draggable){
+    const isSelected = ui.tierSelectedPlayer===name;
+    const attrs = draggable ? `draggable="true" data-tier-drag="${esc(name)}"` : '';
+    return `<div class="tier-item${isSelected?' selected':''}" ${attrs} data-tier-item="${esc(name)}">
+      ${avatarHtml(name, 52, false)}
+      <span>${esc(name)}</span>
+    </div>`;
+  }
+
+  function tierHtml(){
+    const rows = store.tierRows || [];
+    const assignments = store.tierAssignments || {};
+    const validTierIds = new Set(rows.map(r=>r.id));
+    const allPlayers = [...store.players].sort((a,b)=> a.localeCompare(b));
+    const unassigned = allPlayers.filter(p=> !assignments[p] || !validTierIds.has(assignments[p]));
+    const editingRow = ui.editingTierRowId ? rows.find(r=>r.id===ui.editingTierRowId) : null;
+
+    const rowsHtml = rows.map((row,idx)=>{
+      const members = allPlayers.filter(p=> assignments[p]===row.id);
+      return `<div class="tier-row">
+        <div class="tier-label" style="background:${esc(row.color)};" data-tier-drop="${row.id}">
+          <span>${esc(row.label)}</span>
+          ${ui.isAdmin? `<div class="tier-row-edit">
+            <a class="linklike" style="color:#141414;" data-tier-up="${row.id}" title="위로">▲</a>
+            <a class="linklike" style="color:#141414;" data-tier-down="${row.id}" title="아래로">▼</a>
+            <a class="linklike" style="color:#141414;" data-tier-edit="${row.id}">✎</a>
+          </div>` : ''}
+        </div>
+        <div class="tier-dropzone" data-tier-drop="${row.id}">
+          ${members.map(p=>tierItemHtml(p, ui.isAdmin)).join('') || (ui.isAdmin?'':'<span class="muted" style="align-self:center;">-</span>')}
+        </div>
+      </div>`;
+    }).join('');
+
+    const tierRowForm = !ui.isAdmin ? '' : `
+    <div class="card">
+      <h3>등급 ${editingRow?'수정':'추가'}</h3>
+      <form id="form-tier-row" class="row" style="align-items:flex-end;">
+        <div><label>등급 이름</label><input type="text" name="label" value="${esc(editingRow?editingRow.label:'')}" required style="max-width:140px;"></div>
+        <div><label>색상</label><input type="color" name="color" value="${editingRow? editingRow.color : '#d1a83a'}" style="width:60px; padding:2px; height:36px;"></div>
+        <button type="submit" class="btn btn-sm">${editingRow?'수정 저장':'등급 추가'}</button>
+        ${editingRow? `<button type="button" class="btn btn-ghost btn-sm" id="cancel-edit-tier-row">취소</button><button type="button" class="btn btn-danger btn-sm" id="delete-tier-row" data-tier-delete="${editingRow.id}">이 등급 삭제</button>` : ''}
+      </form>
+    </div>`;
+
+    return `
+    <div class="card">
+      <h3>티어표</h3>
+      <div class="muted">${ui.isAdmin? '플레이어 아이콘을 등급 칸으로 드래그하거나, 아이콘을 클릭한 뒤 옮길 등급 칸을 클릭하세요 (모바일에서는 클릭 방식을 사용하세요).' : '등록된 선수들을 관리자가 직접 등급별로 분류한 티어표입니다.'}</div>
+    </div>
+    ${tierRowForm}
+    <div class="card">
+      ${rowsHtml || `<div class="empty">등급이 없습니다. ${ui.isAdmin?'위에서 등급을 추가해주세요.':''}</div>`}
+      <div class="tier-row">
+        <div class="tier-label" style="background:var(--panel-2); color:var(--bone); flex:0 0 88px;" data-tier-drop="">Pin<br>Images</div>
+        <div class="tier-dropzone" data-tier-drop="">
+          ${unassigned.length? unassigned.map(p=>tierItemHtml(p, ui.isAdmin)).join('') : `<span class="muted" style="align-self:center;">등록된 선수가 없습니다.</span>`}
+        </div>
+      </div>
     </div>`;
   }
 
@@ -1311,6 +1387,93 @@
       render();
     };
 
+    // ---------- tier list ----------
+    function assignPlayerTier(name, tierId){
+      if(!tierId) delete store.tierAssignments[name];
+      else store.tierAssignments[name] = tierId;
+    }
+    w.querySelectorAll('[data-tier-item]').forEach(el=>{
+      el.onclick = (e)=>{
+        e.stopPropagation();
+        if(!ui.isAdmin) return;
+        const name = el.dataset.tierItem;
+        ui.tierSelectedPlayer = (ui.tierSelectedPlayer===name) ? null : name;
+        render();
+      };
+    });
+    w.querySelectorAll('[data-tier-drag]').forEach(el=>{
+      el.addEventListener('dragstart', (e)=>{
+        e.dataTransfer.setData('text/plain', el.dataset.tierDrag);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+    });
+    w.querySelectorAll('[data-tier-drop]').forEach(el=>{
+      el.addEventListener('dragover', (e)=>{ e.preventDefault(); el.classList.add('drop-hover'); });
+      el.addEventListener('dragleave', ()=>{ el.classList.remove('drop-hover'); });
+      el.addEventListener('drop', async (e)=>{
+        e.preventDefault();
+        el.classList.remove('drop-hover');
+        const name = e.dataTransfer.getData('text/plain');
+        if(!name) return;
+        assignPlayerTier(name, el.dataset.tierDrop);
+        await saveStore();
+        render();
+      });
+      el.onclick = async ()=>{
+        if(!ui.isAdmin || !ui.tierSelectedPlayer) return;
+        assignPlayerTier(ui.tierSelectedPlayer, el.dataset.tierDrop);
+        ui.tierSelectedPlayer = null;
+        await saveStore();
+        render();
+      };
+    });
+    const tierRowForm = w.querySelector('#form-tier-row');
+    if(tierRowForm) tierRowForm.onsubmit = async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(tierRowForm);
+      const label = (fd.get('label')||'').trim();
+      const color = fd.get('color') || '#d1a83a';
+      if(!label) return;
+      if(ui.editingTierRowId){
+        const row = store.tierRows.find(r=>r.id===ui.editingTierRowId);
+        if(row){ row.label = label; row.color = color; }
+        ui.editingTierRowId = null;
+      } else {
+        store.tierRows.push({ id: uid(), label, color });
+      }
+      await saveStore();
+      render();
+    };
+    const cancelTierRow = w.querySelector('#cancel-edit-tier-row');
+    if(cancelTierRow) cancelTierRow.onclick = ()=>{ ui.editingTierRowId=null; render(); };
+    const deleteTierRowBtn = w.querySelector('#delete-tier-row');
+    if(deleteTierRowBtn) deleteTierRowBtn.onclick = async ()=>{
+      if(!confirm('이 등급을 삭제할까요? 배정된 선수는 Pin Images로 돌아갑니다.')) return;
+      const id = deleteTierRowBtn.dataset.tierDelete;
+      store.tierRows = store.tierRows.filter(r=>r.id!==id);
+      Object.keys(store.tierAssignments).forEach(name=>{ if(store.tierAssignments[name]===id) delete store.tierAssignments[name]; });
+      ui.editingTierRowId = null;
+      await saveStore();
+      render();
+    };
+    w.querySelectorAll('[data-tier-edit]').forEach(a=>{
+      a.onclick = ()=>{ ui.editingTierRowId = a.dataset.tierEdit; render(); };
+    });
+    w.querySelectorAll('[data-tier-up]').forEach(a=>{
+      a.onclick = async ()=>{
+        const id = a.dataset.tierUp;
+        const idx = store.tierRows.findIndex(r=>r.id===id);
+        if(idx>0){ const [row] = store.tierRows.splice(idx,1); store.tierRows.splice(idx-1,0,row); await saveStore(); render(); }
+      };
+    });
+    w.querySelectorAll('[data-tier-down]').forEach(a=>{
+      a.onclick = async ()=>{
+        const id = a.dataset.tierDown;
+        const idx = store.tierRows.findIndex(r=>r.id===id);
+        if(idx>=0 && idx<store.tierRows.length-1){ const [row] = store.tierRows.splice(idx,1); store.tierRows.splice(idx+1,0,row); await saveStore(); render(); }
+      };
+    });
+
     const addPlayerBtn = w.querySelector('#btn-add-player');
     if(addPlayerBtn) addPlayerBtn.onclick = async ()=>{
       const input = w.querySelector('#new-player-input');
@@ -1643,6 +1806,18 @@
       const haveS = new Set(store.survivorPerks.map(p=>normSearch(p.name)));
       PERK_SEED.forEach(name=>{ if(!haveS.has(normSearch(name))){ store.survivorPerks.push({id:uid(), name, avatar:null}); haveS.add(normSearch(name)); } });
       store.perksSeeded = true;
+      needsSave = true;
+    }
+    if(!store.tierRowsSeeded){
+      store.tierRows = [
+        { id: uid(), label:'S', color:'#ff5c5c' },
+        { id: uid(), label:'A', color:'#ff9d4d' },
+        { id: uid(), label:'B', color:'#ffe45c' },
+        { id: uid(), label:'C', color:'#8be24d' },
+        { id: uid(), label:'D', color:'#4dc3ff' },
+        { id: uid(), label:'F', color:'#9d7cff' },
+      ];
+      store.tierRowsSeeded = true;
       needsSave = true;
     }
     if(needsSave) await saveStore();
