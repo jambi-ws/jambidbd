@@ -1,1832 +1,882 @@
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-<style>
-  html, body{ margin:0; padding:0; }
-  body{ background:var(--bg); }
-  :root{
-    --bg:#050a12;
-    --panel:#0b1526;
-    --panel-2:#0f1c30;
-    --line:#22374f;
-    --bone:#e8edf5;
-    --muted:#7e93ab;
-    --killer:#c1524c;
-    --killer-dim:#2c2027;
-    --surv:#d1a83a;
-    --surv-dim:#332c1c;
-    --entity:#3f7fe0;
-    --entity-dim:#122341;
-    --good:#6fae7a;
-    --bad:#d1615c;
-    --draw:#c2a55c;
-    --rank1:#4c8fef;
-    --rank2:#39b6ac;
-    --rank3:#9b7fe0;
-  }
-  *{box-sizing:border-box;}
-  #dbd-root{
-    font-family:'Noto Sans KR',sans-serif;
-    background:
-      radial-gradient(ellipse at 20% -10%, rgba(63,127,224,0.12), transparent 55%),
-      radial-gradient(ellipse at 90% 10%, rgba(63,127,224,0.07), transparent 50%),
-      var(--bg);
-    color:var(--bone);
-    min-height:100%;
-    position:relative;
-    overflow-x:hidden;
-  }
-  #dbd-root::before{
-    content:"";
-    position:fixed; inset:0; pointer-events:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-    z-index:0;
-  }
-  .dbd-wrap{ max-width:1180px; margin:0 auto; padding:28px 22px 60px; position:relative; z-index:1;}
-
-  .dbd-header{ display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:18px; margin-bottom:22px;}
-  .dbd-title{ font-family:'Noto Sans KR',sans-serif; font-weight:800; font-size:25px; color:var(--bone); margin:0;}
-  .dbd-title small{ display:block; font-weight:500; font-size:12.5px; color:var(--muted); margin-top:6px;}
-  .dbd-authrow{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted);}
-
-  .btn{
-    font-family:'Noto Sans KR',sans-serif; font-weight:600; font-size:13px;
-    background:var(--panel-2); color:var(--bone); border:1px solid var(--line);
-    padding:8px 14px; border-radius:3px; cursor:pointer; transition:border-color .15s, transform .1s;
-  }
-  .btn:hover{ border-color:var(--muted); }
-  .btn:active{ transform:translateY(1px); }
-  .btn-killer{ background:var(--killer-dim); border-color:var(--killer); color:#f2d6d6;}
-  .btn-surv{ background:var(--surv-dim); border-color:var(--surv); color:#f1e6b8;}
-  .btn-ghost{ background:transparent; }
-  .btn-sm{ padding:4px 9px; font-size:11.5px; }
-  .btn-danger{ border-color:var(--bad); color:#f2b8b5;}
-  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
-
-  .tabs{ display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; }
-  .tab{
-    font-family:'Noto Sans KR',sans-serif; font-size:12.5px; font-weight:700;
-    padding:9px 16px; border:1px solid var(--line); border-radius:3px; background:var(--panel);
-    color:var(--muted); cursor:pointer;
-  }
-  .tab.active{ color:var(--bone); border-color:var(--entity); background:var(--entity-dim); }
-
-  .card{ background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:18px 20px; margin-bottom:16px; }
-  .card h3{ font-size:15px; margin:0 0 12px; color:var(--bone); font-weight:700;}
-  .muted{ color:var(--muted); font-size:12.5px; }
-  .empty{ text-align:center; padding:34px 10px; color:var(--muted); font-size:13.5px; }
-
-  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
-  .stat-box{ background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:12px 14px; }
-  .stat-box .label{ font-size:11px; color:var(--muted); margin-bottom:6px;}
-  .stat-box .value{ font-size:20px; font-weight:700; color:var(--bone); }
-  .stat-box.killer .value{ color:#e08c8c; }
-  .stat-box.surv .value{ color:var(--surv); }
-
-  table{ width:100%; border-collapse:collapse; font-size:13px; color:var(--bone); }
-  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--line); }
-  td{ padding:9px 10px; border-bottom:1px solid var(--line); color:var(--bone); vertical-align:middle;}
-  tr:last-child td{ border-bottom:none; }
-  tr.clickable{ cursor:pointer; }
-  tr.clickable:hover td{ background:var(--panel-2); }
-  .mono{ font-weight:700; color:var(--bone); }
-  .win{ color:var(--good); font-weight:700;} .lose{ color:var(--bad); font-weight:700;} .draw{ color:var(--draw); font-weight:700;}
-  .perk-tag{ display:inline-block; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; padding:2px 7px; font-size:11px; margin:1px 3px 1px 0; color:var(--bone);}
-  .perk-picker{ background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:10px; }
-  .perk-picker .perk-tag[data-perk-add]{ transition:border-color .12s; }
-  .perk-picker .perk-tag[data-perk-add]:hover{ border-color:var(--entity); }
-
-  .player-cell{ display:flex; align-items:center; gap:9px; }
-  .player-cell span{ white-space:nowrap; }
-  .avatar{ border-radius:50%; object-fit:cover; flex-shrink:0; border:1px solid var(--line); display:block; }
-  .avatar-fallback{ border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-weight:700; }
-  .avatar.square, .avatar-fallback.square{ border-radius:6px; }
-
-  .rank-badge{
-    width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:13px; flex-shrink:0; border:2px solid;
-  }
-  .rank-1{ border-color:var(--rank1); color:#bcd8ff; background:radial-gradient(circle, rgba(76,143,239,0.20), transparent); }
-  .rank-2{ border-color:var(--rank2); color:#bdece6; background:radial-gradient(circle, rgba(57,182,172,0.18), transparent); }
-  .rank-3{ border-color:var(--rank3); color:#d6c9f7; background:radial-gradient(circle, rgba(155,127,224,0.18), transparent); }
-  .rank-n{ border-color:var(--line); color:var(--muted); background:var(--panel-2); }
-
-  .form-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:12px; }
-  label{ font-size:11px; color:var(--muted); display:block; margin-bottom:4px; }
-  input[type=text], input[type=date], input[type=password], input[type=search], select{
-    width:100%; background:var(--bg); border:1px solid var(--line); color:var(--bone);
-    padding:8px 9px; border-radius:3px; font-family:'Noto Sans KR',sans-serif; font-size:13px;
-  }
-  input[type=file]{ color:var(--bone); font-size:12.5px; }
-  input:focus, select:focus{ outline:2px solid var(--entity); outline-offset:1px; border-color:var(--entity); }
-  .radio-row{ display:flex; gap:14px; align-items:center; height:36px; flex-wrap:wrap;}
-  .radio-row label{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--bone); margin:0; cursor:pointer;}
-  .search-box{ margin-bottom:6px; max-width:320px; }
-
-  .divider{ height:1px; background:var(--line); margin:16px 0; }
-  a.linklike{ color:#b79ee8; cursor:pointer; text-decoration:underline; font-size:12.5px; }
-  .footnote{ margin-top:28px; padding-top:14px; border-top:1px solid var(--line); font-size:11.5px; color:var(--muted); line-height:1.6;}
-  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  .grow{ flex:1; min-width:180px; }
-  .profile-header{ display:flex; align-items:center; gap:14px; }
-  .freq-list{ display:flex; flex-direction:column; gap:6px; }
-  .freq-row{ display:flex; align-items:center; gap:8px; justify-content:space-between; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; padding:7px 11px; font-size:12.5px;}
-  .freq-row .freq-left{ display:flex; align-items:center; gap:8px; }
-  .roster-chip{ display:flex; align-items:center; gap:7px; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:4px 10px 4px 4px; white-space:nowrap; }
-  .tier-row{ display:flex; align-items:stretch; border:1px solid var(--line); border-radius:5px; overflow:hidden; margin-bottom:6px; min-height:76px; }
-  .tier-label{ flex:0 0 88px; display:flex; align-items:center; justify-content:center; text-align:center; font-family:'Noto Sans KR',sans-serif; font-weight:800; font-size:15px; color:#141414; padding:6px; word-break:keep-word; position:relative; }
-  .tier-dropzone{ flex:1; background:var(--panel); display:flex; flex-wrap:wrap; align-items:flex-start; align-content:flex-start; gap:10px; padding:10px; min-height:76px; transition:background .12s; }
-  .tier-dropzone.drop-hover{ background:var(--entity-dim); }
-  .tier-item{ display:flex; flex-direction:column; align-items:center; gap:3px; width:60px; cursor:grab; user-select:none; }
-  .tier-item.selected .avatar, .tier-item.selected .avatar-fallback{ outline:3px solid var(--entity); outline-offset:2px; }
-  .tier-item span{ font-size:10.5px; color:var(--bone); text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .tier-row-edit{ flex:0 0 auto; display:flex; flex-direction:column; gap:2px; justify-content:center; padding:4px 6px; }
-  .dbd-toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); color:var(--bone); padding:10px 16px; border-radius:6px; font-size:12.5px; opacity:0; pointer-events:none; transition:opacity .25s; z-index:9999; }
-  .dbd-toast.error{ border-color:var(--bad); color:#f6c7c3; }
-  @media (max-width:520px){ .dbd-title{ font-size:20px; } }
-</style>
-
-<div id="dbd-root"><div class="dbd-wrap"><div class="empty">불러오는 중...</div></div></div>
-
-<!--
-  ============================================================
-  이 사이트는 GitHub 저장소를 데이터 저장소로 사용합니다.
-  아래 GITHUB_OWNER / GITHUB_REPO 값이 본인 저장소와 맞는지 확인하세요.
-  읽기는 누구나 가능(공개 raw 파일), 쓰기(기록 추가/수정)는 관리자가
-  본인 브라우저에만 저장하는 GitHub 개인 접근 토큰(PAT)으로 인증합니다.
-  ============================================================
--->
-
-<script>
-(function(){
-  const STORE_KEY = 'dbd-store';
-  const IS_ADMIN_KEY = 'is-admin-unlocked';
-  const AVATAR_SIZE = 160;
-
-  const KILLER_SEED = ["트래퍼","힐빌리","너스","샤이프","헉스","닥터","헌트리스","레이더","데스슬링어","블라이트","트릭스터","나이트메어","고스트페이스","드라큘라","싱귤래러티","언노운","캐니발","레거시","좀비","스피릿"];
-  const SURV_SEED = ["드와이트","멕","클로데트","제이크","넷","기술자","엘라","페이지","벤","성모","브람스","저드","자넷","제인","아담","제프","커스터드","팜파스","펠릭스","셀레스트"];
-  const PERK_SEED = ["BBQ와 스테이크","고삐","무자비한 타격","저주받은","슬픈 발걸음","엔드게임","분노","끈질김","치유","완강함","기민함","이타심","자기 관리","불굴의 의지","보복","반향","도살자의 저주","연쇄 사냥꾼","치어리더","단호한 몸부림"];
-
-  let store = null;
-  let ui = {
-    tab:'ranking',        // ranking | killer | survivor | admin | player
-    isAdmin:false,
-    editingKillerId:null,
-    editingSurvId:null,
-    editingKillerProfileId:null,
-    editingKillerPerkId:null,
-    editingSurvivorPerkId:null,
-    viewingPlayer:null,
-    returnTab:'ranking',
-    searchRanking:'',
-    searchKiller:'',
-    searchSurvivor:'',
-    searchBalance:'',
-    perkSelections:{},
-    perkSearches:{},
-    editingRoundId:null,
-    groupSelection:{ killer:[], survivor:[] },
-    searchRounds:'',
-    searchUngrouped:'',
-    tierSelectedPlayer:null,
-    editingTierRowId:null,
-  };
-
-  function root(){ return document.getElementById('dbd-root'); }
-  function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function uid(){ try{ return crypto.randomUUID(); }catch(e){ return 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); } }
-  function pct(n){ return (Math.round(n*10)/10).toFixed(1); }
-  function num1(n){ return (Math.round(n*10)/10).toFixed(1); }
-  function normSearch(s){ return (s||'').toString().replace(/\s+/g,'').toLowerCase(); }
-  function matchesSearch(name, query){ if(!query) return true; return normSearch(name).includes(normSearch(query)); }
-
-  // ---------- storage abstraction ----------
-  // Priority: (1) Claude artifact's window.storage — shared, only works inside claude.ai.
-  //           (2) GitHub repo — shared, works once this file is hosted (e.g. GitHub Pages).
-  //               Reads use the repo's public raw file (no token needed, works for anyone).
-  //               Writes use the GitHub Contents API with a Personal Access Token that the
-  //               admin enters once and that is stored ONLY in their own browser — it is
-  //               never included in this file or the hosted site.
-  //           (3) This browser's own localStorage — last resort, single browser/computer only.
-  const GITHUB_OWNER = 'jambi-ws';
-  const GITHUB_REPO = 'jambidbd';
-  const GITHUB_BRANCH = 'main';
-  const GITHUB_DATA_PATH = 'data/dbd-store.json';
-  const GH_TOKEN_KEY = 'github-pat';
-
-  const HAS_CLOUD_STORAGE = !!(window.storage && typeof window.storage.get==='function' && typeof window.storage.set==='function');
-  const SHARED_MODE = HAS_CLOUD_STORAGE ? 'claude' : 'github';
-  function lsKey(key, shared){ return 'jambidbd-dbd:'+(shared?'shared':'personal')+':'+key; }
-
-  async function githubReadStore(){
-    const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_DATA_PATH}?t=${Date.now()}`;
-    const resp = await fetch(url, { cache: 'no-store' });
-    if(resp.status===404) return null; // data file doesn't exist yet — treated as empty store
-    if(!resp.ok) throw new Error('github read failed: '+resp.status);
-    return await resp.text();
-  }
-  async function githubWriteStore(jsonText){
-    const token = localStorage.getItem(lsKey(GH_TOKEN_KEY, false));
-    if(!token) throw new Error('no github token saved on this browser');
-    const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_DATA_PATH}`;
-    let sha;
-    try{
-      const getResp = await fetch(apiUrl+`?ref=${GITHUB_BRANCH}`, { headers: { Authorization: `token ${token}` } });
-      if(getResp.ok){ const data = await getResp.json(); sha = data.sha; }
-    }catch(e){ /* file probably doesn't exist yet — create it */ }
-    const content = btoa(unescape(encodeURIComponent(jsonText)));
-    const body = { message: '내전 기록 업데이트', content, branch: GITHUB_BRANCH };
-    if(sha) body.sha = sha;
-    const putResp = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if(!putResp.ok){
-      const errText = await putResp.text().catch(()=> '');
-      throw new Error('github write failed: '+putResp.status+' '+errText);
-    }
-    return true;
-  }
-  async function verifyGithubToken(token){
-    const resp = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`, { headers: { Authorization: `token ${token}` } });
-    return resp.ok;
-  }
-
-  async function storageGet(key, shared){
-    if(HAS_CLOUD_STORAGE) return window.storage.get(key, shared);
-    if(shared){
-      const text = await githubReadStore();
-      return text!=null ? { key, value: text, shared:true } : null;
-    }
-    const raw = localStorage.getItem(lsKey(key, shared));
-    return raw!=null ? { key, value: raw, shared: !!shared } : null;
-  }
-  async function storageSet(key, value, shared){
-    if(HAS_CLOUD_STORAGE) return window.storage.set(key, value, shared);
-    if(shared){
-      await githubWriteStore(value);
-      return { key, value, shared:true };
-    }
-    localStorage.setItem(lsKey(key, shared), value);
-    return { key, value, shared: !!shared };
-  }
-
-  function defaultStore(){ return { players:[], avatars:{}, killers:[], killerPerks:[], survivorPerks:[], killersSeeded:false, perksSeeded:false, killerMatches:[], survivorMatches:[], adminHash:null, tierRows:[], tierAssignments:{}, tierRowsSeeded:false }; }
-
-  function normalizeStore(s){
-    if(!s.avatars) s.avatars = {};
-    if(!s.killers) s.killers = [];
-    if(!s.killerPerks) s.killerPerks = [];
-    if(!s.survivorPerks) s.survivorPerks = [];
-    if(typeof s.killersSeeded !== 'boolean') s.killersSeeded = false;
-    if(typeof s.perksSeeded !== 'boolean') s.perksSeeded = false;
-    if(!s.tierRows) s.tierRows = [];
-    if(!s.tierAssignments) s.tierAssignments = {};
-    if(typeof s.tierRowsSeeded !== 'boolean') s.tierRowsSeeded = false;
-    return s;
-  }
-  async function loadStore(){
-    for(let attempt=0; attempt<3; attempt++){
-      try{
-        const r = await storageGet(STORE_KEY, true);
-        const s = r && r.value ? JSON.parse(r.value) : defaultStore();
-        return { store: normalizeStore(s), loadedOk: true };
-      }catch(e){
-        console.error('load attempt '+(attempt+1)+' failed', e);
-        if(attempt<2) await new Promise(res=>setTimeout(res,350));
-      }
-    }
-    return { store: defaultStore(), loadedOk: false };
-  }
-  function ensureToastEl(){
-    let toast = document.getElementById('dbd-toast');
-    if(!toast){
-      toast = document.createElement('div');
-      toast.id = 'dbd-toast';
-      toast.className = 'dbd-toast';
-      document.body.appendChild(toast);
-    }
-    return toast;
-  }
-  function showToast(msg, isError){
-    const toast = ensureToastEl();
-    toast.textContent = msg;
-    toast.className = 'dbd-toast' + (isError?' error':'');
-    toast.style.opacity = '1';
-    clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(()=>{ toast.style.opacity='0'; }, 2600);
-  }
-  async function saveStore(){
-    for(let attempt=0; attempt<2; attempt++){
-      try{
-        await storageSet(STORE_KEY, JSON.stringify(store), true);
-        return true;
-      }catch(e){
-        console.error('save failed (attempt '+(attempt+1)+')', e);
-        if(attempt===0){ await new Promise(r=>setTimeout(r,350)); continue; }
-        showToast('저장 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.', true);
-        return false;
-      }
-    }
-  }
-  async function getPersonal(key){
-    try{ const r = await storageGet(key, false); return r ? r.value : null; }
-    catch(e){ return null; }
-  }
-  async function setPersonal(key, val){
-    try{ await storageSet(key, val, false); }catch(e){ console.error(e); }
-  }
-
-  function ensurePlayer(name){
-    if(name && !store.players.includes(name)) store.players.push(name);
-  }
-
-  function fileToCompressedDataUrl(file){
-    return new Promise((resolve, reject)=>{
-      const img = new Image();
-      const reader = new FileReader();
-      reader.onerror = ()=> reject(new Error('read failed'));
-      reader.onload = ()=>{
-        img.onerror = ()=> reject(new Error('image load failed'));
-        img.onload = ()=>{
-          const s = AVATAR_SIZE;
-          const canvas = document.createElement('canvas');
-          canvas.width = s; canvas.height = s;
-          const ctx = canvas.getContext('2d');
-          const side = Math.min(img.width, img.height);
-          const sx = (img.width - side)/2, sy = (img.height - side)/2;
-          ctx.drawImage(img, sx, sy, side, side, 0, 0, s, s);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        };
-        img.src = reader.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function avatarBlock(src, label, size, extraAttrs, shape){
-    const attrs = extraAttrs||'';
-    const cls = shape==='square' ? ' square' : '';
-    if(src) return `<img class="avatar${cls}" ${attrs} src="${src}" width="${size}" height="${size}" alt="">`;
-    const initial = (label||'?').trim().charAt(0).toUpperCase() || '?';
-    return `<div class="avatar-fallback${cls}" ${attrs} style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.4)}px;">${esc(initial)}</div>`;
-  }
-  function avatarHtml(name, size, clickable){
-    const src = store.avatars && store.avatars[name];
-    const attrs = clickable ? `data-view-player="${esc(name)}" style="cursor:pointer;"` : '';
-    return avatarBlock(src, name, size, attrs);
-  }
-  function playerCellHtml(name, size, clickable){
-    const nameAttrs = clickable? `data-view-player="${esc(name)}" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;"` : '';
-    return `<span class="player-cell">${avatarHtml(name, size||26, clickable)}<span ${nameAttrs}>${esc(name)}</span></span>`;
-  }
-  function findKillerEntry(name){
-    const n = normSearch(name);
-    if(!n) return null;
-    return (store.killers||[]).find(k=> normSearch(k.name)===n) || null;
-  }
-  function killerAvatarHtml(name, size){
-    const entry = findKillerEntry(name);
-    return avatarBlock(entry?entry.avatar:null, name, size, '');
-  }
-  function findPerkEntry(name, kind){
-    const n = normSearch(name);
-    if(!n) return null;
-    const list = kind==='killer' ? store.killerPerks : store.survivorPerks;
-    return (list||[]).find(p=> normSearch(p.name)===n) || null;
-  }
-  function perkAvatarHtml(name, kind, size){
-    const entry = findPerkEntry(name, kind);
-    return avatarBlock(entry?entry.avatar:null, name, size, '', 'square');
-  }
-
-  // ---------- perk picker (searchable, used by killer/survivor/round forms) ----------
-  function getPerkSelection(slotKey){
-    if(!ui.perkSelections[slotKey]) ui.perkSelections[slotKey] = [];
-    return ui.perkSelections[slotKey];
-  }
-  function getPerkSearch(slotKey){ return ui.perkSearches[slotKey] || ''; }
-  function perkPickerHtml(slotKey, kind){
-    const selected = getPerkSelection(slotKey);
-    const query = getPerkSearch(slotKey);
-    const roster = kind==='killer' ? store.killerPerks : store.survivorPerks;
-    const candidates = roster.filter(p=> matchesSearch(p.name, query) && !selected.includes(p.name));
-    return `<div class="perk-picker">
-      <div class="row" style="gap:6px; flex-wrap:wrap; margin-bottom:8px;">
-        ${selected.length ? selected.map(name=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(name,kind,20)}${esc(name)}<a data-perk-remove="${slotKey}|${esc(name)}" style="cursor:pointer; margin-left:2px; color:var(--bad); font-weight:700;">×</a></span>`).join('') : `<span class="muted">선택된 퍽 없음 (최대 4개)</span>`}
-      </div>
-      <input type="text" class="search-box" id="perk-search-${slotKey}" placeholder="퍽 검색 (띄어쓰기 무관)" value="${esc(query)}" style="max-width:240px;">
-      <div class="row" style="gap:5px; flex-wrap:wrap; margin-top:8px; max-height:120px; overflow-y:auto;">
-        ${candidates.length ? candidates.slice(0,40).map(p=>`<span class="perk-tag" data-perk-add="${slotKey}|${esc(p.name)}|${kind}" style="cursor:pointer; display:inline-flex; align-items:center; gap:4px;">${avatarBlock(p.avatar,p.name,20,'','square')}${esc(p.name)}</span>`).join('') : `<span class="muted">검색 결과 없음</span>`}
-      </div>
-    </div>`;
-  }
-
-  // ---------- stats ----------
-  function killerStatsFor(name){
-    const ms = store.killerMatches.filter(m=>m.player===name);
-    const wins = ms.filter(m=>m.result==='win').length;
-    const draws = ms.filter(m=>m.result==='draw').length;
-    const losses = ms.filter(m=>m.result==='lose').length;
-    const total = ms.length;
-    const killSum = ms.reduce((a,m)=> a + (typeof m.kills==='number'? m.kills : 0), 0);
-    return { total, wins, draws, losses, winRate: total? wins/total*100 : 0, matches: ms, avgKills: total? killSum/total : 0 };
-  }
-  function survStatsFor(name){
-    const ms = store.survivorMatches.filter(m=>m.player===name);
-    const wins = ms.filter(m=>m.result==='win').length;
-    const draws = ms.filter(m=>m.result==='draw').length;
-    const losses = ms.filter(m=>m.result==='lose').length;
-    const total = ms.length;
-    return { total, wins, draws, losses, winRate: total? wins/total*100 : 0, matches: ms };
-  }
-  function topFreq(list, field, n){
-    const freq = {}; const wins = {};
-    list.forEach(m=>{ const v=m[field]; if(!v) return; freq[v]=(freq[v]||0)+1; if(m.result==='win') wins[v]=(wins[v]||0)+1; });
-    return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([name,count])=>({name, count, wins: wins[name]||0}));
-  }
-  function topPerkFreq(list, n){
-    const freq = {};
-    list.forEach(m=> (m.perks||[]).forEach(p=>{ if(p) freq[p]=(freq[p]||0)+1; }));
-    return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([name,count])=>({name, count}));
-  }
-  function summaryFor(name){
-    const k = killerStatsFor(name);
-    const s = survStatsFor(name);
-    const totalMatches = k.total + s.total;
-    const wins = k.wins + s.wins;
-    const draws = k.draws + s.draws;
-    const losses = k.losses + s.losses;
-    const overallRate = totalMatches ? wins/totalMatches*100 : 0;
-    return { name, k, s, totalMatches, wins, draws, losses, overallRate,
-      topKillers: topFreq(k.matches,'killer',5),
-      topKillerPerks: topPerkFreq(k.matches,5),
-      topSurvPerks: topPerkFreq(s.matches,5),
-    };
-  }
-  // Raw win% alone unfairly rewards tiny sample sizes (1 game at 100% would outrank
-  // 100 games at 86%). Wilson score lower bound gives a conservative, sample-size-aware
-  // estimate for ranking purposes, while the displayed win% stays the plain raw value.
-  function wilsonLowerBound(wins, total){
-    if(total<=0) return 0;
-    const z = 1.96; // ~95% confidence
-    const n = total;
-    const phat = wins / n;
-    const denom = 1 + (z*z)/n;
-    const centre = phat + (z*z)/(2*n);
-    const margin = z * Math.sqrt((phat*(1-phat) + (z*z)/(4*n)) / n);
-    return (centre - margin) / denom;
-  }
-  function ranking(){
-    return store.players.map(summaryFor).filter(p=>p.totalMatches>0).sort((a,b)=>{
-      const wa = wilsonLowerBound(a.wins, a.totalMatches);
-      const wb = wilsonLowerBound(b.wins, b.totalMatches);
-      return wb - wa || b.totalMatches - a.totalMatches;
-    });
-  }
-  function rankBadgeClass(i){ return i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'; }
-
-  function datalist(id, seed, extra){
-    const set = new Set(seed);
-    extra.forEach(v=>{ if(v) set.add(v); });
-    return `<datalist id="${id}">${[...set].map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
-  }
-  function resultLabelsFor(isKiller){ return isKiller ? {win:'승리',draw:'무',lose:'패배'} : {win:'탈출',draw:'무',lose:'패배'}; }
-
-  // ---------- render ----------
-  function render(){
-    const w = root();
-    w.innerHTML = `<div class="dbd-wrap">
-      ${headerHtml()}
-      ${tabsHtml()}
-      <div id="dbd-body">${bodyHtml()}</div>
-      <div class="footnote">랭킹과 기록을 조회할 수 있습니다.</div>
-    </div>`;
-    bindEvents();
-  }
-
-  function rerenderKeepFocus(){
-    const active = document.activeElement;
-    let restoreId=null, selStart=null, selEnd=null;
-    if(active && active.id && root().contains(active)){
-      restoreId = active.id;
-      if('selectionStart' in active){ try{ selStart=active.selectionStart; selEnd=active.selectionEnd; }catch(e){} }
-    }
-    render();
-    if(restoreId){
-      const el = document.getElementById(restoreId);
-      if(el){
-        el.focus();
-        if(selStart!=null && 'setSelectionRange' in el){ try{ el.setSelectionRange(selStart, selEnd); }catch(e){} }
-      }
-    }
-  }
-
-  // Rebuilding the DOM on every keystroke (rerenderKeepFocus) breaks IME composition
-  // for Korean/Japanese/Chinese input — mid-syllable input events would tear down the
-  // input element while the browser is still composing a character (e.g. "정" would
-  // render as "ㅈㅓㅇ"). Fix: while composing, only update state — don't touch the DOM.
-  // Once composition ends, do the real update/re-render.
-  function bindLiveSearchInput(el, onChange){
-    if(!el) return;
-    let composing = false;
-    el.addEventListener('compositionstart', ()=>{ composing = true; });
-    el.addEventListener('compositionend', ()=>{ composing = false; onChange(el.value); });
-    el.addEventListener('input', ()=>{ if(!composing) onChange(el.value); });
-  }
-
-  function headerHtml(){
-    return `<div class="dbd-header">
-      <h1 class="dbd-title">데바데 내전 기록실<small>Killer / Survivor 전적 · 랭킹</small></h1>
-      <div class="dbd-authrow">
-        ${ui.isAdmin
-          ? `<span>관리자 모드</span><button class="btn btn-sm" id="btn-manual-save">저장</button><button class="btn btn-sm" id="btn-lock">잠그기</button>`
-          : `<button class="btn btn-sm" id="btn-unlock">관리자 모드</button>`}
-      </div>
-    </div>`;
-  }
-
-  function tabsHtml(){
-    const tabs = [['ranking','랭킹'],['tier','티어표'],['balance','맞밸런스'],['rounds','라운드 기록'],['killer','킬러 기록'],['survivor','생존자 기록']];
-    if(ui.isAdmin) tabs.push(['admin','관리']);
-    return `<div class="tabs">${tabs.map(([id,label])=>`<div class="tab ${ui.tab===id?'active':''}" data-tab="${id}">${label}</div>`).join('')}</div>`;
-  }
-
-  function bodyHtml(){
-    if(ui.tab==='player' && ui.viewingPlayer) return playerDetailHtml(ui.viewingPlayer);
-    switch(ui.tab){
-      case 'ranking': return rankingHtml();
-      case 'tier': return tierHtml();
-      case 'balance': return balanceHtml();
-      case 'rounds': return roundsHtml();
-      case 'killer': return roleHtml('killer');
-      case 'survivor': return roleHtml('survivor');
-      case 'admin': return ui.isAdmin ? adminHtml() : rankingHtml();
-      default: return rankingHtml();
-    }
-  }
-
-  function combinationsUpToK(arr, maxK){
-    const results = [];
-    function rec(start, combo){
-      if(combo.length>=2) results.push(combo.slice());
-      if(combo.length>=maxK) return;
-      for(let i=start;i<arr.length;i++){
-        combo.push(arr[i]);
-        rec(i+1, combo);
-        combo.pop();
-      }
-    }
-    rec(0, []);
-    return results;
-  }
-
-  function computeBalanceFor(name, board){
-    const P = board.find(p=>p.name===name);
-    if(!P) return null;
-    const others = board.filter(p=>p.name!==name);
-    let best=null, bestDiff=Infinity;
-    others.forEach(o=>{ const diff=Math.abs(o.overallRate-P.overallRate); if(diff<bestDiff){ bestDiff=diff; best=o; } });
-
-    const weaker = others.filter(o=>o.overallRate<=P.overallRate);
-    let bestGroup=null, bestGroupDiff=Infinity;
-    if(weaker.length>=2){
-      const pool = weaker.slice(0, 12); // keep combination search reasonable
-      const combos = combinationsUpToK(pool, Math.min(pool.length, 6));
-      combos.forEach(combo=>{
-        const avg = combo.reduce((a,c)=>a+c.overallRate,0)/combo.length;
-        const diff = Math.abs(avg-P.overallRate);
-        if(diff < bestGroupDiff - 1e-9 || (Math.abs(diff-bestGroupDiff)<1e-9 && bestGroup && combo.length<bestGroup.length)){
-          bestGroupDiff = diff; bestGroup = combo;
-        }
-      });
-    }
-    return { P, best, bestDiff, bestGroup, bestGroupDiff };
-  }
-
-  function balanceInfoHtml(name, board){
-    if(board.length < 2) return `<div class="muted">비교할 수 있는 선수가 2명 이상 필요합니다.</div>`;
-    const b = computeBalanceFor(name, board);
-    if(!b) return `<div class="muted">경기 기록이 없어 맞밸런스를 계산할 수 없습니다.</div>`;
-    return `<div class="row" style="gap:26px; align-items:flex-start;">
-      <div class="grow">
-        <div class="muted" style="margin-bottom:6px;">1:1 맞밸런스 상대</div>
-        ${b.best ? `<div class="row" style="gap:8px; align-items:center;">${playerCellHtml(b.best.name,32,true)}<span class="mono">${pct(b.bestDiff)}%p 차이</span></div>` : `<span class="muted">비교할 다른 선수가 없습니다.</span>`}
-      </div>
-      <div class="grow">
-        <div class="muted" style="margin-bottom:6px;">그룹 맞밸런스</div>
-        ${b.bestGroup ? `<div class="row" style="gap:6px; align-items:center; flex-wrap:wrap;">${b.bestGroup.map(g=>playerCellHtml(g.name,26,true)).join('')}<span class="mono">${pct(b.bestGroupDiff)}%p 차이</span></div>` : `<span class="muted">그룹으로 묶을 낮은 승률의 선수가 부족합니다.</span>`}
-      </div>
-    </div>`;
-  }
-
-  function balanceHtml(){
-    const board = ranking();
-    const query = ui.searchBalance;
-    const filtered = board.filter(p=> matchesSearch(p.name, query));
-    return `<div class="card">
-      <h3>맞밸런스</h3>
-      <input class="search-box" type="text" id="search-balance" placeholder="선수 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
-      <div class="muted" style="margin-top:8px;">전체 승률이 비슷한 선수와 1:1로 맞붙이거나, 승률이 낮은 여러 명을 묶어 평균 승률을 맞추는 방식으로 계산합니다. 경기 기록이 없는 선수는 대상에서 제외됩니다.</div>
-    </div>
-    ${board.length<2 ? `<div class="card"><div class="empty">비교할 수 있는 선수가 2명 이상 필요합니다.</div></div>` :
-      !filtered.length ? `<div class="card"><div class="empty">검색 결과가 없습니다.</div></div>` :
-      filtered.map((p,i)=>`<div class="card">
-        <div class="row" style="justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:10px;">
-          ${playerCellHtml(p.name, 34, true)}
-          <span class="muted mono">전체 승률 ${pct(p.overallRate)}%</span>
-        </div>
-        ${balanceInfoHtml(p.name, board)}
-      </div>`).join('')}`;
-  }
-
-
-  function rankingHtml(){
-    const all = ranking();
-    const board = all.filter(p=> matchesSearch(p.name, ui.searchRanking));
-    return `<div class="card">
-      <h3>랭킹 (전체 승률 기준)</h3>
-      <input class="search-box" type="text" id="search-ranking" placeholder="플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(ui.searchRanking)}">
-      ${!all.length ? `<div class="empty">아직 등록된 선수/기록이 없습니다.</div>` :
-        !board.length ? `<div class="empty">검색 결과가 없습니다.</div>` :
-        `<table>
-          <thead><tr><th>순위</th><th>선수</th><th>총 판수</th><th>승 / 무 / 패</th><th>승률</th></tr></thead>
-          <tbody>
-          ${board.map(p=>{ const i = all.indexOf(p); return `<tr class="clickable" data-view-player="${esc(p.name)}">
-            <td><div class="rank-badge ${rankBadgeClass(i)}">${i+1}</div></td>
-            <td>${playerCellHtml(p.name, 30, false)}</td>
-            <td class="mono">${p.totalMatches}</td>
-            <td class="mono"><span class="win">${p.wins}</span> / <span class="draw">${p.draws}</span> / <span class="lose">${p.losses}</span></td>
-            <td class="mono">${p.totalMatches? pct(p.overallRate)+'%':'-'}</td>
-          </tr>`; }).join('')}
-          </tbody>
-        </table>`}
-      <div class="muted" style="margin-top:10px;">선수 이름 또는 프로필을 클릭하면 상세 전적을 볼 수 있습니다.</div>
-    </div>`;
-  }
-
-  function statBlock(summary){
-    const p = summary;
-    return `
-    <div class="stat-grid">
-      <div class="stat-box overall"><div class="label">총 라운드</div><div class="value">${p.totalMatches}</div></div>
-      <div class="stat-box overall"><div class="label">승 / 무 / 패</div><div class="value" style="font-size:16px;"><span class="win">${p.wins}</span> / <span class="draw">${p.draws}</span> / <span class="lose">${p.losses}</span></div></div>
-      <div class="stat-box overall"><div class="label">전체 승률</div><div class="value">${p.totalMatches? pct(p.overallRate)+'%':'-'}</div></div>
-      <div class="stat-box killer"><div class="label">킬러 경기 수</div><div class="value">${p.k.total}</div></div>
-      <div class="stat-box killer"><div class="label">킬러 평균 킬</div><div class="value">${p.k.total? num1(p.k.avgKills):'-'}</div></div>
-      <div class="stat-box surv"><div class="label">생존자 경기 수</div><div class="value">${p.s.total}</div></div>
-    </div>`;
-  }
-
-  function freqListHtml(items, iconFn){
-    if(!items.length) return `<div class="muted">기록 없음</div>`;
-    return `<div class="freq-list">${items.map(it=>`<div class="freq-row"><span class="freq-left">${iconFn? iconFn(it.name):''}<span>${esc(it.name)}</span></span><span class="mono">${it.count}회${it.wins!=null?` · ${it.wins}승`:''}</span></div>`).join('')}</div>`;
-  }
-
-  function playerDetailHtml(name){
-    const p = summaryFor(name);
-    const board = ranking();
-    const rankIdx = board.findIndex(b=>b.name===name);
-    return `
-    <div class="row" style="justify-content:space-between; margin-bottom:14px;">
-      <button class="btn btn-sm" id="btn-back">← 뒤로</button>
-      ${rankIdx>=0 ? `<span class="muted">전체 ${board.length}명 중 ${rankIdx+1}위</span>` : ''}
-    </div>
-    <div class="card">
-      <div class="profile-header">
-        ${avatarHtml(name, 56, false)}
-        <div>
-          <h3 style="margin:0;">${esc(name)}</h3>
-          ${rankIdx>=0 ? `<div class="rank-badge ${rankBadgeClass(rankIdx)}" style="margin-top:6px;">${rankIdx+1}</div>` : ''}
-        </div>
-      </div>
-      <div class="divider"></div>
-      ${statBlock(p)}
-    </div>
-    <div class="card">
-      <div class="row" style="gap:26px; align-items:flex-start;">
-        <div class="grow">
-          <h3>자주 사용한 킬러</h3>
-          ${freqListHtml(p.topKillers, n=>killerAvatarHtml(n,26))}
-          <div class="divider"></div>
-          <h3>자주 사용한 킬러 퍽</h3>
-          ${freqListHtml(p.topKillerPerks, n=>perkAvatarHtml(n,'killer',22))}
-        </div>
-        <div class="grow">
-          <h3>자주 사용한 생존자 퍽</h3>
-          ${freqListHtml(p.topSurvPerks, n=>perkAvatarHtml(n,'survivor',22))}
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <h3>맞밸런스</h3>
-      ${balanceInfoHtml(name, board)}
-    </div>`;
-  }
-
-  function getRounds(){
-    const map = {};
-    store.killerMatches.forEach(m=>{
-      if(!m.roundId) return;
-      if(!map[m.roundId]) map[m.roundId] = { roundId:m.roundId, date:m.date, killer:null, survivors:[] };
-      map[m.roundId].killer = m;
-      if(m.date) map[m.roundId].date = m.date;
-    });
-    store.survivorMatches.forEach(m=>{
-      if(!m.roundId) return;
-      if(!map[m.roundId]) map[m.roundId] = { roundId:m.roundId, date:m.date, killer:null, survivors:[] };
-      map[m.roundId].survivors.push(m);
-      if(!map[m.roundId].date && m.date) map[m.roundId].date = m.date;
-    });
-    return Object.values(map).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-  }
-
-  function roundMatchesSearch(round, query){
-    if(!query) return true;
-    const names = [];
-    if(round.killer) names.push(round.killer.player);
-    round.survivors.forEach(s=> names.push(s.player));
-    return names.some(n=> matchesSearch(n, query));
-  }
-
-  function roundCardHtml(round){
-    const kResultLabels = resultLabelsFor(true);
-    const sResultLabels = resultLabelsFor(false);
-    const killerRow = round.killer ? `
-      <div class="row" style="justify-content:space-between; align-items:center; gap:10px; background:var(--killer-dim); border:1px solid var(--killer); border-radius:4px; padding:8px 12px;">
-        <div class="row" style="gap:10px;">
-          <span class="muted" style="font-size:11px;">킬러</span>
-          ${playerCellHtml(round.killer.player, 28, true)}
-          <span class="player-cell">${killerAvatarHtml(round.killer.killer,24)}<span>${esc(round.killer.killer||'-')}</span></span>
-          <span class="mono">${round.killer.kills!=null? round.killer.kills+'킬':'-'}</span>
-        </div>
-        <div class="row" style="gap:8px; align-items:center;">
-          ${(round.killer.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'killer',16)}${esc(p)}</span>`).join('')}
-          <span class="${round.killer.result==='win'?'win':round.killer.result==='draw'?'draw':'lose'}">${kResultLabels[round.killer.result]||kResultLabels.lose}</span>
-        </div>
-      </div>` : `<div class="muted" style="padding:6px 0;">킬러 기록 없음</div>`;
-    const survRows = round.survivors.map(s=>`
-      <div class="row" style="justify-content:space-between; align-items:center; gap:10px; background:var(--surv-dim); border:1px solid var(--surv); border-radius:4px; padding:8px 12px; margin-top:6px;">
-        <div class="row" style="gap:10px;">
-          <span class="muted" style="font-size:11px;">생존자</span>
-          ${playerCellHtml(s.player, 28, true)}
-        </div>
-        <div class="row" style="gap:8px; align-items:center;">
-          ${(s.perks||[]).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:3px;">${perkAvatarHtml(p,'survivor',16)}${esc(p)}</span>`).join('')}
-          <span class="${s.result==='win'?'win':s.result==='draw'?'draw':'lose'}">${sResultLabels[s.result]||sResultLabels.lose}</span>
-        </div>
-      </div>`).join('');
-    return `<div class="card">
-      <div class="row" style="justify-content:space-between; margin-bottom:8px;">
-        <span class="mono">${esc(round.date||'')}</span>
-        ${ui.isAdmin? `<div class="row" style="gap:6px;">
-          <button class="btn btn-sm" data-edit-round="${round.roundId}">수정</button>
-          <button class="btn btn-sm btn-danger" data-del-round="${round.roundId}">삭제</button>
-        </div>` : ''}
-      </div>
-      ${killerRow}
-      ${survRows || `<div class="muted" style="padding:6px 0;">생존자 기록 없음</div>`}
-    </div>`;
-  }
-
-  function roundSlotFormHtml(slotKey, label, opts){
-    const isKillerSlot = slotKey==='round-killer';
-    const val = opts || {};
-    return `<div class="card" style="background:var(--panel-2);">
-      <h3 style="font-size:13px;">${label}</h3>
-      <div class="form-grid">
-        <div><label>플레이어</label><input list="dbd-players-list-${slotKey}" name="${slotKey}-player" type="text" value="${esc(val.player||'')}">${datalist('dbd-players-list-'+slotKey, [], store.players)}</div>
-        ${isKillerSlot? `<div><label>킬러</label><input list="dbd-role-list-${slotKey}" name="${slotKey}-killer" type="text" value="${esc(val.killer||'')}">${datalist('dbd-role-list-'+slotKey, (store.killers||[]).map(k=>k.name), [])}</div>
-        <div><label>킬 수</label><select name="${slotKey}-kills">${[0,1,2,3,4].map(n=>`<option value="${n}" ${val.kills===n?'selected':(val.kills==null&&n===0?'selected':'')}>${n}킬</option>`).join('')}</select></div>` : ''}
-        <div><label>결과</label>
-          <div class="radio-row">
-            ${isKillerSlot ? `
-              <label><input type="radio" name="${slotKey}-result" value="win" ${!val.result||val.result==='win'?'checked':''}> 승리</label>
-              <label><input type="radio" name="${slotKey}-result" value="draw" ${val.result==='draw'?'checked':''}> 무</label>
-              <label><input type="radio" name="${slotKey}-result" value="lose" ${val.result==='lose'?'checked':''}> 패배</label>
-            ` : `
-              <label><input type="radio" name="${slotKey}-result" value="win" ${!val.result||val.result==='win'?'checked':''}> 탈출</label>
-              <label><input type="radio" name="${slotKey}-result" value="draw" ${val.result==='draw'?'checked':''}> 무</label>
-              <label><input type="radio" name="${slotKey}-result" value="lose" ${val.result==='lose'?'checked':''}> 패배</label>
-            `}
-          </div>
-        </div>
-      </div>
-      <label>퍽 (최대 4개)</label>
-      ${perkPickerHtml(slotKey, isKillerSlot?'killer':'survivor')}
-    </div>`;
-  }
-
-  function tierItemHtml(name, draggable){
-    const isSelected = ui.tierSelectedPlayer===name;
-    const attrs = draggable ? `draggable="true" data-tier-drag="${esc(name)}"` : '';
-    return `<div class="tier-item${isSelected?' selected':''}" ${attrs} data-tier-item="${esc(name)}">
-      ${avatarHtml(name, 52, false)}
-      <span>${esc(name)}</span>
-    </div>`;
-  }
-
-  function tierHtml(){
-    const rows = store.tierRows || [];
-    const assignments = store.tierAssignments || {};
-    const validTierIds = new Set(rows.map(r=>r.id));
-    const allPlayers = [...store.players].sort((a,b)=> a.localeCompare(b));
-    const unassigned = allPlayers.filter(p=> !assignments[p] || !validTierIds.has(assignments[p]));
-    const editingRow = ui.editingTierRowId ? rows.find(r=>r.id===ui.editingTierRowId) : null;
-
-    const rowsHtml = rows.map((row,idx)=>{
-      const members = allPlayers.filter(p=> assignments[p]===row.id);
-      return `<div class="tier-row">
-        <div class="tier-label" style="background:${esc(row.color)};" data-tier-drop="${row.id}">
-          <span>${esc(row.label)}</span>
-          ${ui.isAdmin? `<div class="tier-row-edit">
-            <a class="linklike" style="color:#141414;" data-tier-up="${row.id}" title="위로">▲</a>
-            <a class="linklike" style="color:#141414;" data-tier-down="${row.id}" title="아래로">▼</a>
-            <a class="linklike" style="color:#141414;" data-tier-edit="${row.id}">✎</a>
-          </div>` : ''}
-        </div>
-        <div class="tier-dropzone" data-tier-drop="${row.id}">
-          ${members.map(p=>tierItemHtml(p, ui.isAdmin)).join('') || (ui.isAdmin?'':'<span class="muted" style="align-self:center;">-</span>')}
-        </div>
-      </div>`;
-    }).join('');
-
-    const tierRowForm = !ui.isAdmin ? '' : `
-    <div class="card">
-      <h3>등급 ${editingRow?'수정':'추가'}</h3>
-      <form id="form-tier-row" class="row" style="align-items:flex-end;">
-        <div><label>등급 이름</label><input type="text" name="label" value="${esc(editingRow?editingRow.label:'')}" required style="max-width:140px;"></div>
-        <div><label>색상</label><input type="color" name="color" value="${editingRow? editingRow.color : '#d1a83a'}" style="width:60px; padding:2px; height:36px;"></div>
-        <button type="submit" class="btn btn-sm">${editingRow?'수정 저장':'등급 추가'}</button>
-        ${editingRow? `<button type="button" class="btn btn-ghost btn-sm" id="cancel-edit-tier-row">취소</button><button type="button" class="btn btn-danger btn-sm" id="delete-tier-row" data-tier-delete="${editingRow.id}">이 등급 삭제</button>` : ''}
-      </form>
-    </div>`;
-
-    return `
-    <div class="card">
-      <h3>티어표</h3>
-      <div class="muted">${ui.isAdmin? '플레이어 아이콘을 등급 칸으로 드래그하거나, 아이콘을 클릭한 뒤 옮길 등급 칸을 클릭하세요 (모바일에서는 클릭 방식을 사용하세요).' : '등록된 선수들을 관리자가 직접 등급별로 분류한 티어표입니다.'}</div>
-    </div>
-    ${tierRowForm}
-    <div class="card">
-      ${rowsHtml || `<div class="empty">등급이 없습니다. ${ui.isAdmin?'위에서 등급을 추가해주세요.':''}</div>`}
-      <div class="tier-row">
-        <div class="tier-label" style="background:var(--panel-2); color:var(--bone); flex:0 0 88px;" data-tier-drop="">Pin<br>Images</div>
-        <div class="tier-dropzone" data-tier-drop="">
-          ${unassigned.length? unassigned.map(p=>tierItemHtml(p, ui.isAdmin)).join('') : `<span class="muted" style="align-self:center;">등록된 선수가 없습니다.</span>`}
-        </div>
-      </div>
-    </div>`;
-  }
-
-  function roundsHtml(){
-    const allRounds = getRounds();
-    const query = ui.searchRounds;
-    const rounds = allRounds.filter(r=> roundMatchesSearch(r, query));
-    const editingRound = ui.editingRoundId ? allRounds.find(r=>r.roundId===ui.editingRoundId) : null;
-    const editingDate = editingRound ? editingRound.date : new Date().toISOString().slice(0,10);
-
-    const formSection = !ui.isAdmin ? '' : `
-    <div class="card">
-      <h3>라운드 ${editingRound?'수정':'추가'} <span class="muted" style="font-size:12px; font-weight:500;">(킬러 1명 + 생존자 최대 4명을 한 번에 기록)</span></h3>
-      <form id="form-round">
-        <div class="form-grid" style="max-width:220px;">
-          <div><label>날짜</label><input type="date" name="date" value="${editingDate}"></div>
-        </div>
-        ${roundSlotFormHtml('round-killer', '킬러', editingRound && editingRound.killer ? editingRound.killer : null)}
-        ${[0,1,2,3].map(i=> roundSlotFormHtml('round-surv-'+i, `생존자 ${i+1}`, editingRound && editingRound.survivors[i] ? editingRound.survivors[i] : null)).join('')}
-        <div class="row" style="margin-top:12px;">
-          <button type="submit" class="btn btn-killer">${editingRound?'수정 저장':'라운드 기록 추가'}</button>
-          ${editingRound?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-edit-round">취소</button>`:''}
-        </div>
-      </form>
-      <div class="muted" style="margin-top:8px;">※ 생존자 슬롯 중 플레이어를 비워두면 그 슬롯은 저장되지 않습니다. 킬러도 비워두면 기록되지 않습니다.</div>
-    </div>`;
-
-    const ungroupedSection = !ui.isAdmin ? '' : (()=>{
-      const uQuery = ui.searchUngrouped;
-      const ungroupedKillers = store.killerMatches.filter(m=>!m.roundId && matchesSearch(m.player, uQuery));
-      const ungroupedSurvivors = store.survivorMatches.filter(m=>!m.roundId && matchesSearch(m.player, uQuery));
-      const kResultLabels = resultLabelsFor(true);
-      const sResultLabels = resultLabelsFor(false);
-      const killerRows = ungroupedKillers.map(m=>`
-        <label class="row" style="gap:10px; align-items:center; background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:7px 10px; cursor:pointer;">
-          <input type="checkbox" data-group-select="killer:${m.id}" ${ui.groupSelection.killer.includes(m.id)?'checked':''}>
-          ${playerCellHtml(m.player, 24, false)}
-          <span class="player-cell">${killerAvatarHtml(m.killer,22)}<span>${esc(m.killer||'-')}</span></span>
-          <span class="mono">${m.kills!=null? m.kills+'킬':'-'}</span>
-          <span class="${m.result==='win'?'win':m.result==='draw'?'draw':'lose'}">${kResultLabels[m.result]||kResultLabels.lose}</span>
-          <span class="mono muted">${esc(m.date||'')}</span>
-        </label>`).join('');
-      const survivorRows = ungroupedSurvivors.map(m=>`
-        <label class="row" style="gap:10px; align-items:center; background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:7px 10px; cursor:pointer;">
-          <input type="checkbox" data-group-select="survivor:${m.id}" ${ui.groupSelection.survivor.includes(m.id)?'checked':''}>
-          ${playerCellHtml(m.player, 24, false)}
-          <span class="${m.result==='win'?'win':m.result==='draw'?'draw':'lose'}">${sResultLabels[m.result]||sResultLabels.lose}</span>
-          <span class="mono muted">${esc(m.date||'')}</span>
-        </label>`).join('');
-      return `<div class="card">
-        <h3>묶이지 않은 기록으로 라운드 만들기</h3>
-        <input class="search-box" type="text" id="search-ungrouped" placeholder="선수 이름 검색 (띄어쓰기 무관)" value="${esc(uQuery)}">
-        <div class="muted" style="margin:8px 0;">아직 라운드로 묶이지 않은 킬러·생존자 기록만 아래에 나열됩니다. 같은 판에 속하는 킬러 1명(선택)과 생존자(여러 명 가능)를 체크한 뒤 묶으면, 위 라운드 카드로 합쳐집니다.</div>
-        <div class="row" style="gap:20px; align-items:flex-start;">
-          <div class="grow">
-            <div class="muted" style="margin-bottom:6px;">킬러 기록 (${ungroupedKillers.length}건, 최대 1명 선택)</div>
-            <div class="row" style="flex-direction:column; gap:6px; align-items:stretch; max-height:280px; overflow-y:auto;">
-              ${killerRows || `<span class="muted">묶이지 않은 킬러 기록이 없습니다.</span>`}
-            </div>
-          </div>
-          <div class="grow">
-            <div class="muted" style="margin-bottom:6px;">생존자 기록 (${ungroupedSurvivors.length}건)</div>
-            <div class="row" style="flex-direction:column; gap:6px; align-items:stretch; max-height:280px; overflow-y:auto;">
-              ${survivorRows || `<span class="muted">묶이지 않은 생존자 기록이 없습니다.</span>`}
-            </div>
-          </div>
-        </div>
-        <div class="row" style="margin-top:12px; gap:10px; align-items:center;">
-          <span class="muted">선택됨: 킬러 ${ui.groupSelection.killer.length}개, 생존자 ${ui.groupSelection.survivor.length}개</span>
-          <button type="button" class="btn btn-sm btn-killer" id="btn-group-selected">선택한 기록 그룹으로 묶기</button>
-          <button type="button" class="btn btn-sm btn-ghost" id="btn-group-clear">선택 초기화</button>
-        </div>
-      </div>`;
-    })();
-
-    return `<div class="card">
-      <h3>라운드 기록 검색</h3>
-      <input class="search-box" type="text" id="search-rounds" placeholder="참여 플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
-      <div class="muted" style="margin-top:8px;">한 판(라운드)에 참여한 킬러 1명과 생존자 최대 4명의 기록을 한 카드에서 볼 수 있습니다. "킬러 기록"/"생존자 기록" 탭에서 개별로 추가한 기록은 여기 표시되지 않습니다.</div>
-    </div>
-    ${formSection}
-    ${ungroupedSection}
-    ${!allRounds.length ? `<div class="card"><div class="empty">아직 라운드 기록이 없습니다.</div></div>` :
-      !rounds.length ? `<div class="card"><div class="empty">검색 결과가 없습니다.</div></div>` :
-      rounds.map(roundCardHtml).join('')}`;
-  }
-
-  function roleHtml(role){
-    const isKiller = role==='killer';
-    const allMatches = isKiller ? store.killerMatches : store.survivorMatches;
-    const roleField = 'killer'; // only killer matches carry a character field now
-    const editingId = isKiller ? ui.editingKillerId : ui.editingSurvId;
-    const editing = editingId ? allMatches.find(m=>m.id===editingId) : null;
-    const resultLabels = resultLabelsFor(isKiller);
-    const searchKey = isKiller ? 'searchKiller' : 'searchSurvivor';
-    const query = ui[searchKey];
-    const matches = allMatches.filter(m=> matchesSearch(m.player, query));
-    const charRoster = (store.killers||[]).map(k=>k.name);
-    const perkRoster = (isKiller ? store.killerPerks : store.survivorPerks).map(p=>p.name);
-
-    const rows = [...matches].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).map(m=>`
-      <tr>
-        <td>${playerCellHtml(m.player, 30, true)}</td>
-        ${isKiller ? `<td><span class="player-cell">${killerAvatarHtml(m.killer,28)}<span>${esc(m.killer||'-')}</span></span></td>` : ''}
-        ${isKiller ? `<td class="mono">${m.kills!=null? m.kills+'킬' : '-'}</td>` : ''}
-        <td>${(m.perks||[]).filter(Boolean).map(p=>`<span class="perk-tag" style="display:inline-flex; align-items:center; gap:4px;">${perkAvatarHtml(p, role, 20)}${esc(p)}</span>`).join('')||'<span class="muted">-</span>'}</td>
-        <td class="${m.result==='win'?'win':m.result==='draw'?'draw':'lose'}">${resultLabels[m.result]||resultLabels.lose}</td>
-        <td class="mono">${esc(m.date||'')}</td>
-        <td>${(m.participants||[]).length? `<span class="row" style="gap:4px;">${(m.participants||[]).map(pn=>playerCellHtml(pn,24,true)).join('')}</span>` : '<span class="muted">-</span>'}</td>
-        ${ui.isAdmin? `<td class="row" style="gap:4px;">
-          <button class="btn btn-sm" data-edit="${role}:${m.id}">수정</button>
-          <button class="btn btn-sm btn-danger" data-del="${role}:${m.id}">삭제</button>
-        </td>` : ''}
-      </tr>`).join('');
-
-    const editingParticipants = editing && editing.participants ? editing.participants : [];
-    const participantCheckboxes = store.players.length ? `<div class="row" style="gap:10px; flex-wrap:wrap;">${store.players.map(pn=>`
-      <label style="display:flex; align-items:center; gap:5px; text-transform:none; font-size:12.5px; color:var(--bone); cursor:pointer; white-space:nowrap;">
-        <input type="checkbox" name="participants" value="${esc(pn)}" ${editingParticipants.includes(pn)?'checked':''}> ${playerCellHtml(pn,22,false)}
-      </label>`).join('')}</div>` : `<span class="muted">등록된 선수가 없습니다.</span>`;
-
-    const formSection = !ui.isAdmin ? '' : `
-    <div class="card">
-      <h3>${isKiller?'킬러':'생존자'} 기록 ${editing? '수정':'추가'}</h3>
-      <form id="form-${role}">
-        <div class="form-grid">
-          <div><label>플레이어</label><input list="dbd-players-list-${role}" name="player" type="text" value="${esc(editing?editing.player:'')}" required>${datalist('dbd-players-list-'+role, [], store.players)}</div>
-          ${isKiller? `<div><label>킬러</label><input list="dbd-role-list-${role}" name="role" type="text" value="${esc(editing?editing[roleField]:'')}" required>${datalist('dbd-role-list-'+role, charRoster, allMatches.map(m=>m[roleField]))}</div>` : ''}
-          ${isKiller? `<div><label>킬 수</label><select name="kills">${[0,1,2,3,4].map(n=>`<option value="${n}" ${editing&&editing.kills===n?'selected':(!editing&&n===0?'selected':'')}>${n}킬</option>`).join('')}</select></div>` : ''}
-          <div><label>날짜</label><input type="date" name="date" value="${editing? editing.date : new Date().toISOString().slice(0,10)}"></div>
-          <div><label>결과</label>
-            <div class="radio-row">
-              <label><input type="radio" name="result" value="win" ${editing? (editing.result==='win'?'checked':'') : 'checked'}> ${resultLabels.win}</label>
-              <label><input type="radio" name="result" value="draw" ${editing&&editing.result==='draw'?'checked':''}> ${resultLabels.draw}</label>
-              <label><input type="radio" name="result" value="lose" ${editing&&editing.result==='lose'?'checked':''}> ${resultLabels.lose}</label>
-            </div>
-          </div>
-        </div>
-        <div style="margin-bottom:12px;">
-          <label>퍽 (검색해서 선택, 최대 4개)</label>
-          ${perkPickerHtml(role, isKiller?'killer':'survivor')}
-        </div>
-        <div style="margin-bottom:12px;">
-          <label>참여한 플레이어 (선택, 인원 제한 없음)</label>
-          ${participantCheckboxes}
-        </div>
-        <div class="row">
-          <button type="submit" class="btn ${isKiller?'btn-killer':'btn-surv'}">${editing?'수정 저장':'기록 추가'}</button>
-          ${editing?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-edit-${role}">취소</button>`:''}
-        </div>
-      </form>
-      <div class="muted" style="margin-top:8px;">※ ${isKiller? '킬러 이름은 참고용 예시이며 자유롭게 입력할 수 있습니다. 킬 수는 해당 매치에서 발생한 킬 수를 뜻합니다.' : '생존자 기록은 캐릭터·킬 수 없이 결과와 퍽만 기록합니다.'}</div>
-    </div>`;
-
-    return `
-    <div class="card">
-      <h3>${isKiller?'킬러':'생존자'} 기록 검색</h3>
-      <input class="search-box" type="text" id="search-${role}" placeholder="플레이어 이름 검색 (띄어쓰기 무관)" value="${esc(query)}">
-    </div>
-    ${formSection}
-    <div class="card">
-      <h3>${isKiller?'킬러':'생존자'} 매치 로그 (${matches.length}건)</h3>
-      ${!allMatches.length ? `<div class="empty">아직 기록이 없습니다.</div>` :
-        !matches.length ? `<div class="empty">검색 결과가 없습니다.</div>` :
-        `<table><thead><tr><th>플레이어</th>${isKiller?'<th>킬러</th><th>킬</th>':''}<th>퍽</th><th>결과</th><th>날짜</th><th>참여 플레이어</th>${ui.isAdmin?'<th></th>':''}</tr></thead><tbody>${rows}</tbody></table>`}
-    </div>`;
-  }
-
-  function perkManagerHtml(kind){
-    const list = kind==='killer' ? store.killerPerks : store.survivorPerks;
-    const editingId = kind==='killer' ? ui.editingKillerPerkId : ui.editingSurvivorPerkId;
-    const editing = editingId ? list.find(p=>p.id===editingId) : null;
-    return `<div class="grow">
-      <h4 style="margin:0 0 8px; font-size:13px; color:var(--bone); font-weight:700;">${kind==='killer'?'킬러 퍽':'생존자 퍽'}</h4>
-      <form id="form-perk-${kind}">
-        <div class="row" style="align-items:flex-end; gap:10px; margin-bottom:10px;">
-          <div id="perk-avatar-preview-${kind}">${avatarBlock(editing?editing.avatar:null, editing?editing.name:'?', 40, '', 'square')}</div>
-          <div class="grow"><input type="text" id="perk-name-input-${kind}" value="${esc(editing?editing.name:'')}" placeholder="퍽 이름" required></div>
-          <div><input type="file" id="perk-avatar-input-${kind}" accept="image/*" style="max-width:150px;"></div>
-          <button type="submit" class="btn btn-sm">${editing?'수정 저장':'추가'}</button>
-          ${editing?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-perk-${kind}">취소</button>`:''}
-        </div>
-      </form>
-      <div class="row" style="gap:8px;">
-        ${list.length? list.map(p=>`<span class="roster-chip">${avatarBlock(p.avatar, p.name, 20, '', 'square')}<span>${esc(p.name)}</span>
-            <a class="linklike" data-edit-perk="${kind}:${p.id}">수정</a>
-            <a class="linklike" data-del-perk="${kind}:${p.id}">삭제</a>
-          </span>`).join('') : '<span class="muted">등록된 퍽이 없습니다.</span>'}
-      </div>
-    </div>`;
-  }
-
-  function adminHtml(){
-    const editingKp = ui.editingKillerProfileId ? (store.killers||[]).find(k=>k.id===ui.editingKillerProfileId) : null;
-    return `
-    ${SHARED_MODE==='github' ? `<div class="card" style="border-color:var(--good);">
-      <h3>✓ GitHub 저장소로 공유 저장 중</h3>
-      <div class="muted">이 사이트는 <b>${esc(GITHUB_OWNER)}/${esc(GITHUB_REPO)}</b> 저장소의 <code>${esc(GITHUB_DATA_PATH)}</code> 파일을 데이터로 사용합니다. 읽기는 누구나 가능하고, 새로고침하면 최신 기록을 볼 수 있습니다. 기록을 추가·수정하려면 이 브라우저에 GitHub 토큰이 저장되어 있어야 합니다.</div>
-    </div>` : ''}
-    <div class="card">
-      <h3>데이터 백업</h3>
-      <div class="row">
-        <button type="button" class="btn btn-sm" id="btn-export-data">내보내기 (JSON 다운로드)</button>
-        <label class="btn btn-sm" style="cursor:pointer; margin:0;">가져오기 (JSON 업로드)<input type="file" id="import-file-input" accept="application/json" style="display:none;"></label>
-      </div>
-      <div class="muted" style="margin-top:8px;">내보내기는 현재 모든 기록(선수, 매치 로그, 프로필 사진, 킬러/퍽 프로필 등)을 하나의 파일로 저장합니다. 가져오기는 현재 데이터를 그 파일 내용으로 완전히 덮어씁니다.</div>
-    </div>
-    <div class="card">
-      <h3>프로필 등록</h3>
-      <div class="row" style="align-items:flex-start; gap:18px;">
-        <div id="reg-avatar-preview">${avatarBlock(null, '?', 64)}</div>
-        <div class="grow">
-          <label>플레이어 이름</label>
-          <input list="dbd-players-list-reg" id="reg-name-input" type="text" placeholder="이름을 선택하거나 새로 입력">
-          ${datalist('dbd-players-list-reg', [], store.players)}
-          <div style="margin-top:10px;"><label>프로필 사진</label><input type="file" id="reg-avatar-input" accept="image/*"></div>
-          <button type="button" class="btn" id="btn-reg-save" style="margin-top:12px;">프로필 등록</button>
-        </div>
-      </div>
-      <div class="muted" style="margin-top:10px;">등록된 이름과 사진은 랭킹·기록 전체에 자동으로 연결됩니다. 사진을 다시 등록하면 즉시 갱신됩니다.</div>
-    </div>
-
-    <div class="card">
-      <h3>선수 관리</h3>
-      <div class="row">
-        <div class="grow"><input type="text" id="new-player-input" placeholder="새 선수 이름"></div>
-        <button class="btn" id="btn-add-player">선수 추가</button>
-      </div>
-      <div class="divider"></div>
-      <div class="row" style="gap:10px;">
-        ${store.players.length? store.players.map(p=>`
-          <span class="roster-chip">${avatarHtml(p, 22, false)}<span>${esc(p)}</span>
-            <a class="linklike" data-remove-player="${esc(p)}">삭제</a>
-          </span>`).join('') : '<span class="muted">등록된 선수가 없습니다.</span>'}
-      </div>
-      <div class="muted" style="margin-top:8px;">선수를 삭제해도 이미 기록된 매치 로그는 남습니다.</div>
-    </div>
-
-    <div class="card">
-      <h3>킬러 프로필 관리</h3>
-      <form id="form-killer-profile">
-        <div class="row" style="align-items:flex-end; gap:14px;">
-          <div id="kp-avatar-preview">${avatarBlock(editingKp?editingKp.avatar:null, editingKp?editingKp.name:'?', 56)}</div>
-          <div class="grow"><label>킬러 이름</label><input type="text" id="kp-name-input" value="${esc(editingKp?editingKp.name:'')}" required></div>
-          <div><label>사진</label><input type="file" id="kp-avatar-input" accept="image/*"></div>
-          <button type="submit" class="btn btn-killer">${editingKp?'수정 저장':'킬러 추가'}</button>
-          ${editingKp?`<button type="button" class="btn btn-ghost btn-sm" id="cancel-kp">취소</button>`:''}
-        </div>
-      </form>
-      <div class="divider"></div>
-      <div class="row" style="gap:10px;">
-        ${(store.killers||[]).length? store.killers.map(k=>`
-          <span class="roster-chip">${avatarBlock(k.avatar, k.name, 22)}<span>${esc(k.name)}</span>
-            <a class="linklike" data-edit-killer-profile="${k.id}">수정</a>
-            <a class="linklike" data-del-killer-profile="${k.id}">삭제</a>
-          </span>`).join('') : '<span class="muted">등록된 킬러 프로필이 없습니다. 위 예시 목록은 자유 입력용 참고일 뿐, 사진을 넣으려면 여기서 등록해야 합니다.</span>'}
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>퍽 관리</h3>
-      <div class="row" style="align-items:flex-start; gap:24px;">
-        ${perkManagerHtml('killer')}
-        ${perkManagerHtml('survivor')}
-      </div>
-      <div class="muted" style="margin-top:10px;">이름을 수정하거나 삭제해도 이미 기록된 매치 로그의 퍽 이름은 바뀌지 않습니다.</div>
-    </div>
-
-    ${SHARED_MODE==='github' ? `
-    <div class="card">
-      <h3>GitHub 접근 토큰</h3>
-      <div class="muted" style="margin-bottom:10px;">현재 이 브라우저에 저장된 토큰으로 쓰기 권한을 인증하고 있습니다. 토큰을 바꾸거나 다른 저장소로 옮기려면 아래에서 새 토큰을 등록하세요. 토큰은 이 브라우저에만 저장되고 사이트 파일에는 포함되지 않습니다.</div>
-      <div class="row">
-        <button type="button" class="btn btn-sm" id="btn-reset-token">새 토큰 등록</button>
-        <button type="button" class="btn btn-sm btn-danger" id="btn-clear-token">저장된 토큰 삭제</button>
-      </div>
-    </div>` : `
-    <div class="card">
-      <h3>관리자 비밀번호 변경</h3>
-      <form id="form-change-pw" class="row">
-        <div><label>현재 비밀번호</label><input type="password" name="cur" required></div>
-        <div><label>새 비밀번호</label><input type="password" name="next" required></div>
-        <button type="submit" class="btn" style="margin-top:18px;">변경</button>
-      </form>
-    </div>`}
-    <div class="muted">매치 기록 추가·수정·삭제는 상단의 "킬러 기록" / "생존자 기록" 탭에서 진행할 수 있습니다.</div>
-    `;
-  }
-
-  // ---------- events ----------
-  function bindEvents(){
-    const w = root();
-
-    const unlockBtn = w.querySelector('#btn-unlock');
-    if(unlockBtn) unlockBtn.onclick = onUnlock;
-    const lockBtn = w.querySelector('#btn-lock');
-    if(lockBtn) lockBtn.onclick = onLock;
-    const manualSaveBtn = w.querySelector('#btn-manual-save');
-    if(manualSaveBtn) manualSaveBtn.onclick = async ()=>{
-      manualSaveBtn.disabled = true;
-      manualSaveBtn.textContent = '저장 중...';
-      const ok = await saveStore();
-      manualSaveBtn.disabled = false;
-      manualSaveBtn.textContent = '저장';
-      if(ok) showToast('저장되었습니다.', false);
-    };
-
-    const exportBtn = w.querySelector('#btn-export-data');
-    if(exportBtn) exportBtn.onclick = ()=>{
-      try{
-        const blob = new Blob([JSON.stringify(store, null, 2)], { type:'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const stamp = new Date().toISOString().slice(0,10);
-        a.href = url;
-        a.download = `dbd-scrim-backup-${stamp}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        showToast('내보내기가 완료됐습니다.', false);
-      }catch(e){ console.error(e); showToast('내보내기에 실패했습니다.', true); }
-    };
-    const importInput = w.querySelector('#import-file-input');
-    if(importInput) importInput.addEventListener('change', ()=>{
-      const f = importInput.files[0];
-      if(!f) return;
-      if(!confirm('가져오면 현재 데이터를 완전히 덮어씁니다. 계속할까요?')){ importInput.value=''; return; }
-      const reader = new FileReader();
-      reader.onload = async ()=>{
-        try{
-          const parsed = JSON.parse(reader.result);
-          store = normalizeStore(parsed);
-          const ok = await saveStore();
-          showToast(ok? '가져오기가 완료됐습니다.' : '가져오기는 됐지만 저장에 실패했어요.', !ok);
-          render();
-        }catch(e){ console.error(e); showToast('파일을 읽지 못했습니다. 올바른 백업 파일인지 확인해 주세요.', true); }
-      };
-      reader.readAsText(f);
-    });
-
-    w.querySelectorAll('.tab').forEach(t=>{
-      t.onclick = ()=>{ ui.tab = t.dataset.tab; ui.viewingPlayer=null; render(); };
-    });
-
-    const backBtn = w.querySelector('#btn-back');
-    if(backBtn) backBtn.onclick = ()=>{ ui.tab = ui.returnTab || 'ranking'; ui.viewingPlayer=null; render(); };
-
-    w.querySelectorAll('[data-view-player]').forEach(el=>{
-      el.onclick = (e)=>{
-        e.stopPropagation();
-        const name = el.dataset.viewPlayer;
-        ui.returnTab = (ui.tab==='player') ? ui.returnTab : ui.tab;
-        ui.viewingPlayer = name;
-        ui.tab = 'player';
-        render();
-      };
-    });
-
-    // search inputs (keep focus while typing; IME-safe for Korean input)
-    [['search-ranking','searchRanking'],['search-killer','searchKiller'],['search-survivor','searchSurvivor'],['search-balance','searchBalance'],['search-rounds','searchRounds'],['search-ungrouped','searchUngrouped']].forEach(([id,key])=>{
-      const el = w.querySelector('#'+id);
-      bindLiveSearchInput(el, (val)=>{ ui[key] = val; rerenderKeepFocus(); });
-    });
-
-    // perk picker (search-as-you-type, click to add/remove; IME-safe)
-    w.querySelectorAll('[id^="perk-search-"]').forEach(el=>{
-      const slotKey = el.id.replace('perk-search-','');
-      bindLiveSearchInput(el, (val)=>{ ui.perkSearches[slotKey] = val; rerenderKeepFocus(); });
-    });
-    w.querySelectorAll('[data-perk-add]').forEach(el=>{
-      el.onclick = ()=>{
-        const [slotKey, name] = el.dataset.perkAdd.split('|');
-        const sel = getPerkSelection(slotKey);
-        if(sel.includes(name)) return;
-        if(sel.length>=4){ showToast('퍽은 최대 4개까지 선택할 수 있습니다.', true); return; }
-        sel.push(name);
-        render();
-      };
-    });
-    w.querySelectorAll('[data-perk-remove]').forEach(el=>{
-      el.onclick = ()=>{
-        const [slotKey, name] = el.dataset.perkRemove.split('|');
-        const sel = getPerkSelection(slotKey);
-        const idx = sel.indexOf(name);
-        if(idx>=0) sel.splice(idx,1);
-        render();
-      };
-    });
-
-    // profile registration (admin)
-    const regNameInput = w.querySelector('#reg-name-input');
-    const regFileInput = w.querySelector('#reg-avatar-input');
-    if(regNameInput){
-      regNameInput.addEventListener('change', ()=>{
-        const wrap = document.getElementById('reg-avatar-preview');
-        if(wrap) wrap.innerHTML = avatarBlock(store.avatars[regNameInput.value.trim()]||null, regNameInput.value.trim(), 64);
-      });
-    }
-    if(regFileInput){
-      regFileInput.addEventListener('change', ()=>{
-        const f = regFileInput.files[0];
-        if(!f) return;
-        const reader = new FileReader();
-        reader.onload = ()=>{ const wrap=document.getElementById('reg-avatar-preview'); if(wrap) wrap.innerHTML = `<img class="avatar" src="${reader.result}" width="64" height="64" alt="">`; };
-        reader.readAsDataURL(f);
-      });
-    }
-    const regSaveBtn = w.querySelector('#btn-reg-save');
-    if(regSaveBtn) regSaveBtn.onclick = async ()=>{
-      const name = regNameInput.value.trim();
-      if(!name){ alert('이름을 입력해 주세요.'); return; }
-      ensurePlayer(name);
-      if(regFileInput.files && regFileInput.files[0]){
-        try{ store.avatars[name] = await fileToCompressedDataUrl(regFileInput.files[0]); }
-        catch(err){ console.error(err); alert('이미지를 처리하지 못했습니다. 다른 이미지를 시도해 주세요.'); }
-      }
-      await saveStore();
-      render();
-    };
-
-    ['killer','survivor'].forEach(role=>{
-      const form = w.querySelector('#form-'+role);
-      if(form) form.onsubmit = (e)=> onSubmitMatch(e, role);
-      const cancel = w.querySelector('#cancel-edit-'+role);
-      if(cancel) cancel.onclick = ()=>{
-        if(role==='killer') ui.editingKillerId=null; else ui.editingSurvId=null;
-        ui.perkSelections[role] = [];
-        ui.perkSearches[role] = '';
-        render();
-      };
-    });
-    w.querySelectorAll('[data-edit]').forEach(b=>{
-      b.onclick = ()=>{
-        const [role,id] = b.dataset.edit.split(':');
-        const list = role==='killer' ? store.killerMatches : store.survivorMatches;
-        const rec = list.find(m=>m.id===id);
-        if(role==='killer') ui.editingKillerId=id; else ui.editingSurvId=id;
-        ui.perkSelections[role] = rec && rec.perks ? rec.perks.slice() : [];
-        ui.perkSearches[role] = '';
-        render();
-      };
-    });
-    w.querySelectorAll('[data-del]').forEach(b=>{
-      b.onclick = ()=> onDeleteMatch(b.dataset.del);
-    });
-
-    // round (grouped match) form
-    const roundForm = w.querySelector('#form-round');
-    if(roundForm) roundForm.onsubmit = onSubmitRound;
-    const cancelRound = w.querySelector('#cancel-edit-round');
-    if(cancelRound) cancelRound.onclick = ()=>{
-      ui.editingRoundId = null;
-      resetRoundSlotState();
-      render();
-    };
-    w.querySelectorAll('[data-edit-round]').forEach(b=>{
-      b.onclick = ()=>{
-        const roundId = b.dataset.editRound;
-        const round = getRounds().find(r=>r.roundId===roundId);
-        ui.editingRoundId = roundId;
-        resetRoundSlotState();
-        if(round){
-          if(round.killer) ui.perkSelections['round-killer'] = (round.killer.perks||[]).slice();
-          for(let i=0;i<4;i++){
-            if(round.survivors[i]) ui.perkSelections['round-surv-'+i] = (round.survivors[i].perks||[]).slice();
-          }
-        }
-        render();
-      };
-    });
-    w.querySelectorAll('[data-del-round]').forEach(b=>{
-      b.onclick = async ()=>{
-        if(!confirm('이 라운드의 모든 기록(킬러+생존자)을 삭제할까요?')) return;
-        const roundId = b.dataset.delRound;
-        store.killerMatches = store.killerMatches.filter(m=>m.roundId!==roundId);
-        store.survivorMatches = store.survivorMatches.filter(m=>m.roundId!==roundId);
-        await saveStore();
-        render();
-      };
-    });
-
-    // grouping existing individual records into a round
-    w.querySelectorAll('[data-group-select]').forEach(cb=>{
-      cb.onchange = ()=>{
-        const [role,id] = cb.dataset.groupSelect.split(':');
-        const arr = ui.groupSelection[role];
-        const idx = arr.indexOf(id);
-        if(cb.checked){ if(idx<0) arr.push(id); }
-        else { if(idx>=0) arr.splice(idx,1); }
-      };
-    });
-    const groupBtn = w.querySelector('#btn-group-selected');
-    if(groupBtn) groupBtn.onclick = async ()=>{
-      const kIds = ui.groupSelection.killer;
-      const sIds = ui.groupSelection.survivor;
-      if(kIds.length===0 && sIds.length===0){ showToast('선택된 기록이 없습니다.', true); return; }
-      if(kIds.length>1){ alert('킬러는 한 라운드에 한 명만 그룹으로 묶을 수 있습니다.'); return; }
-      const roundId = uid();
-      store.killerMatches.forEach(m=>{ if(kIds.includes(m.id)) m.roundId = roundId; });
-      store.survivorMatches.forEach(m=>{ if(sIds.includes(m.id)) m.roundId = roundId; });
-      ui.groupSelection = { killer:[], survivor:[] };
-      await saveStore();
-      showToast('선택한 기록을 그룹으로 묶었습니다. "라운드 기록" 탭에서 확인하세요.', false);
-      render();
-    };
-    const groupClearBtn = w.querySelector('#btn-group-clear');
-    if(groupClearBtn) groupClearBtn.onclick = ()=>{
-      ui.groupSelection = { killer:[], survivor:[] };
-      render();
-    };
-
-    // ---------- tier list ----------
-    function assignPlayerTier(name, tierId){
-      if(!tierId) delete store.tierAssignments[name];
-      else store.tierAssignments[name] = tierId;
-    }
-    w.querySelectorAll('[data-tier-item]').forEach(el=>{
-      el.onclick = (e)=>{
-        e.stopPropagation();
-        if(!ui.isAdmin) return;
-        const name = el.dataset.tierItem;
-        ui.tierSelectedPlayer = (ui.tierSelectedPlayer===name) ? null : name;
-        render();
-      };
-    });
-    w.querySelectorAll('[data-tier-drag]').forEach(el=>{
-      el.addEventListener('dragstart', (e)=>{
-        e.dataTransfer.setData('text/plain', el.dataset.tierDrag);
-        e.dataTransfer.effectAllowed = 'move';
-      });
-    });
-    w.querySelectorAll('[data-tier-drop]').forEach(el=>{
-      el.addEventListener('dragover', (e)=>{ e.preventDefault(); el.classList.add('drop-hover'); });
-      el.addEventListener('dragleave', ()=>{ el.classList.remove('drop-hover'); });
-      el.addEventListener('drop', async (e)=>{
-        e.preventDefault();
-        el.classList.remove('drop-hover');
-        const name = e.dataTransfer.getData('text/plain');
-        if(!name) return;
-        assignPlayerTier(name, el.dataset.tierDrop);
-        await saveStore();
-        render();
-      });
-      el.onclick = async ()=>{
-        if(!ui.isAdmin || !ui.tierSelectedPlayer) return;
-        assignPlayerTier(ui.tierSelectedPlayer, el.dataset.tierDrop);
-        ui.tierSelectedPlayer = null;
-        await saveStore();
-        render();
-      };
-    });
-    const tierRowForm = w.querySelector('#form-tier-row');
-    if(tierRowForm) tierRowForm.onsubmit = async (e)=>{
-      e.preventDefault();
-      const fd = new FormData(tierRowForm);
-      const label = (fd.get('label')||'').trim();
-      const color = fd.get('color') || '#d1a83a';
-      if(!label) return;
-      if(ui.editingTierRowId){
-        const row = store.tierRows.find(r=>r.id===ui.editingTierRowId);
-        if(row){ row.label = label; row.color = color; }
-        ui.editingTierRowId = null;
-      } else {
-        store.tierRows.push({ id: uid(), label, color });
-      }
-      await saveStore();
-      render();
-    };
-    const cancelTierRow = w.querySelector('#cancel-edit-tier-row');
-    if(cancelTierRow) cancelTierRow.onclick = ()=>{ ui.editingTierRowId=null; render(); };
-    const deleteTierRowBtn = w.querySelector('#delete-tier-row');
-    if(deleteTierRowBtn) deleteTierRowBtn.onclick = async ()=>{
-      if(!confirm('이 등급을 삭제할까요? 배정된 선수는 Pin Images로 돌아갑니다.')) return;
-      const id = deleteTierRowBtn.dataset.tierDelete;
-      store.tierRows = store.tierRows.filter(r=>r.id!==id);
-      Object.keys(store.tierAssignments).forEach(name=>{ if(store.tierAssignments[name]===id) delete store.tierAssignments[name]; });
-      ui.editingTierRowId = null;
-      await saveStore();
-      render();
-    };
-    w.querySelectorAll('[data-tier-edit]').forEach(a=>{
-      a.onclick = ()=>{ ui.editingTierRowId = a.dataset.tierEdit; render(); };
-    });
-    w.querySelectorAll('[data-tier-up]').forEach(a=>{
-      a.onclick = async ()=>{
-        const id = a.dataset.tierUp;
-        const idx = store.tierRows.findIndex(r=>r.id===id);
-        if(idx>0){ const [row] = store.tierRows.splice(idx,1); store.tierRows.splice(idx-1,0,row); await saveStore(); render(); }
-      };
-    });
-    w.querySelectorAll('[data-tier-down]').forEach(a=>{
-      a.onclick = async ()=>{
-        const id = a.dataset.tierDown;
-        const idx = store.tierRows.findIndex(r=>r.id===id);
-        if(idx>=0 && idx<store.tierRows.length-1){ const [row] = store.tierRows.splice(idx,1); store.tierRows.splice(idx+1,0,row); await saveStore(); render(); }
-      };
-    });
-
-    const addPlayerBtn = w.querySelector('#btn-add-player');
-    if(addPlayerBtn) addPlayerBtn.onclick = async ()=>{
-      const input = w.querySelector('#new-player-input');
-      const name = input.value.trim();
-      if(!name) return;
-      ensurePlayer(name);
-      await saveStore();
-      render();
-    };
-    w.querySelectorAll('[data-remove-player]').forEach(a=>{
-      a.onclick = async ()=>{
-        const name = a.dataset.removePlayer;
-        if(!confirm(`"${name}" 선수를 목록에서 삭제할까요? (기존 매치 기록은 유지됩니다)`)) return;
-        store.players = store.players.filter(p=>p!==name);
-        await saveStore();
-        render();
-      };
-    });
-
-    // killer profile CRUD
-    const kpForm = w.querySelector('#form-killer-profile');
-    if(kpForm) kpForm.onsubmit = onSubmitKillerProfile;
-    const kpFile = w.querySelector('#kp-avatar-input');
-    if(kpFile) kpFile.addEventListener('change', ()=>{
-      const f = kpFile.files[0];
-      if(!f) return;
-      const reader = new FileReader();
-      reader.onload = ()=>{ const wrap=document.getElementById('kp-avatar-preview'); if(wrap) wrap.innerHTML = `<img class="avatar" src="${reader.result}" width="56" height="56" alt="">`; };
-      reader.readAsDataURL(f);
-    });
-    const cancelKp = w.querySelector('#cancel-kp');
-    if(cancelKp) cancelKp.onclick = ()=>{ ui.editingKillerProfileId=null; render(); };
-    w.querySelectorAll('[data-edit-killer-profile]').forEach(a=>{
-      a.onclick = ()=>{ ui.editingKillerProfileId = a.dataset.editKillerProfile; render(); };
-    });
-    w.querySelectorAll('[data-del-killer-profile]').forEach(a=>{
-      a.onclick = async ()=>{
-        if(!confirm('이 킬러 프로필을 삭제할까요?')) return;
-        store.killers = store.killers.filter(k=>k.id!==a.dataset.delKillerProfile);
-        await saveStore();
-        render();
-      };
-    });
-
-    // perk roster CRUD (with optional photo)
-    ['killer','survivor'].forEach(kind=>{
-      const form = w.querySelector('#form-perk-'+kind);
-      if(form) form.onsubmit = (e)=> onSubmitPerk(e, kind);
-      const fileInput = w.querySelector('#perk-avatar-input-'+kind);
-      if(fileInput) fileInput.addEventListener('change', ()=>{
-        const f = fileInput.files[0];
-        if(!f) return;
-        const reader = new FileReader();
-        reader.onload = ()=>{ const wrap=document.getElementById('perk-avatar-preview-'+kind); if(wrap) wrap.innerHTML = `<img class="avatar square" src="${reader.result}" width="40" height="40" alt="">`; };
-        reader.readAsDataURL(f);
-      });
-      const cancel = w.querySelector('#cancel-perk-'+kind);
-      if(cancel) cancel.onclick = ()=>{ if(kind==='killer') ui.editingKillerPerkId=null; else ui.editingSurvivorPerkId=null; render(); };
-    });
-    w.querySelectorAll('[data-edit-perk]').forEach(a=>{
-      a.onclick = ()=>{
-        const [kind,id] = a.dataset.editPerk.split(':');
-        if(kind==='killer') ui.editingKillerPerkId=id; else ui.editingSurvivorPerkId=id;
-        render();
-      };
-    });
-    w.querySelectorAll('[data-del-perk]').forEach(a=>{
-      a.onclick = async ()=>{
-        const [kind,id] = a.dataset.delPerk.split(':');
-        if(!confirm('이 퍽을 삭제할까요?')) return;
-        if(kind==='killer') store.killerPerks = store.killerPerks.filter(p=>p.id!==id);
-        else store.survivorPerks = store.survivorPerks.filter(p=>p.id!==id);
-        await saveStore();
-        render();
-      };
-    });
-
-    const pwForm = w.querySelector('#form-change-pw');
-    if(pwForm) pwForm.onsubmit = async (e)=>{
-      e.preventDefault();
-      const fd = new FormData(pwForm);
-      const cur = fd.get('cur'), next = fd.get('next');
-      if(btoa(unescape(encodeURIComponent(cur))) !== store.adminHash){ alert('현재 비밀번호가 일치하지 않습니다.'); return; }
-      store.adminHash = btoa(unescape(encodeURIComponent(next)));
-      await saveStore();
-      alert('비밀번호가 변경되었습니다.');
-      pwForm.reset();
-    };
-
-    const resetTokenBtn = w.querySelector('#btn-reset-token');
-    if(resetTokenBtn) resetTokenBtn.onclick = async ()=>{
-      const token = prompt('새 GitHub Personal Access Token을 입력하세요.');
-      if(!token) return;
-      let ok = false;
-      try{ ok = await verifyGithubToken(token); }catch(e){ console.error(e); ok = false; }
-      if(!ok){ alert('토큰이 올바르지 않거나 저장소 접근 권한이 없습니다.'); return; }
-      localStorage.setItem(lsKey(GH_TOKEN_KEY, false), token);
-      showToast('토큰이 저장되었습니다.', false);
-    };
-    const clearTokenBtn = w.querySelector('#btn-clear-token');
-    if(clearTokenBtn) clearTokenBtn.onclick = ()=>{
-      if(!confirm('저장된 토큰을 삭제할까요? 이후 쓰기 작업 시 다시 입력해야 합니다.')) return;
-      localStorage.removeItem(lsKey(GH_TOKEN_KEY, false));
-      showToast('토큰이 삭제되었습니다.', false);
-    };
-  }
-
-  async function onSubmitPerk(e, kind){
-    e.preventDefault();
-    const nameInput = document.getElementById('perk-name-input-'+kind);
-    const fileInput = document.getElementById('perk-avatar-input-'+kind);
-    const name = nameInput.value.trim();
-    if(!name) return;
-    let avatarDataUrl = null;
-    if(fileInput.files && fileInput.files[0]){
-      try{ avatarDataUrl = await fileToCompressedDataUrl(fileInput.files[0]); }
-      catch(err){ console.error(err); alert('이미지를 처리하지 못했습니다.'); }
-    }
-    const list = kind==='killer' ? store.killerPerks : store.survivorPerks;
-    const editingId = kind==='killer' ? ui.editingKillerPerkId : ui.editingSurvivorPerkId;
-    if(editingId){
-      const idx = list.findIndex(p=>p.id===editingId);
-      if(idx>=0){ list[idx].name = name; if(avatarDataUrl) list[idx].avatar = avatarDataUrl; }
-      if(kind==='killer') ui.editingKillerPerkId=null; else ui.editingSurvivorPerkId=null;
-    } else {
-      list.push({ id: uid(), name, avatar: avatarDataUrl });
-    }
-    await saveStore();
-    render();
-  }
-
-  async function onSubmitKillerProfile(e){
-    e.preventDefault();
-    const nameInput = document.getElementById('kp-name-input');
-    const fileInput = document.getElementById('kp-avatar-input');
-    const name = nameInput.value.trim();
-    if(!name) return;
-    let avatarDataUrl = null;
-    if(fileInput.files && fileInput.files[0]){
-      try{ avatarDataUrl = await fileToCompressedDataUrl(fileInput.files[0]); }
-      catch(err){ console.error(err); alert('이미지를 처리하지 못했습니다.'); }
-    }
-    if(ui.editingKillerProfileId){
-      const idx = store.killers.findIndex(k=>k.id===ui.editingKillerProfileId);
-      if(idx>=0){ store.killers[idx].name = name; if(avatarDataUrl) store.killers[idx].avatar = avatarDataUrl; }
-      ui.editingKillerProfileId = null;
-    } else {
-      store.killers.push({ id: uid(), name, avatar: avatarDataUrl });
-    }
-    await saveStore();
-    render();
-  }
-
-  function resetRoundSlotState(){
-    ['round-killer','round-surv-0','round-surv-1','round-surv-2','round-surv-3'].forEach(k=>{
-      ui.perkSelections[k] = [];
-      ui.perkSearches[k] = '';
-    });
-  }
-
-  async function onSubmitRound(e){
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const date = fd.get('date') || new Date().toISOString().slice(0,10);
-    const roundId = ui.editingRoundId || uid();
-
-    // if editing, remove the old records for this round first, then re-add fresh ones below
-    if(ui.editingRoundId){
-      store.killerMatches = store.killerMatches.filter(m=>m.roundId!==roundId);
-      store.survivorMatches = store.survivorMatches.filter(m=>m.roundId!==roundId);
-    }
-
-    const killerPlayer = (fd.get('round-killer-player')||'').trim();
-    const killerChar = (fd.get('round-killer-killer')||'').trim();
-    if(killerPlayer && killerChar){
-      ensurePlayer(killerPlayer);
-      store.killerMatches.push({
-        id: uid(), roundId, date,
-        player: killerPlayer, killer: killerChar,
-        kills: Math.max(0, Math.min(4, parseInt(fd.get('round-killer-kills'),10) || 0)),
-        result: fd.get('round-killer-result') || 'win',
-        perks: getPerkSelection('round-killer').slice(),
-        participants: [],
-      });
-    }
-    for(let i=0;i<4;i++){
-      const slotKey = 'round-surv-'+i;
-      const survPlayer = (fd.get(slotKey+'-player')||'').trim();
-      if(!survPlayer) continue;
-      ensurePlayer(survPlayer);
-      store.survivorMatches.push({
-        id: uid(), roundId, date,
-        player: survPlayer,
-        result: fd.get(slotKey+'-result') || 'win',
-        perks: getPerkSelection(slotKey).slice(),
-        participants: [],
-      });
-    }
-
-    ui.editingRoundId = null;
-    resetRoundSlotState();
-    await saveStore();
-    render();
-  }
-
-  async function onSubmitMatch(e, role){
-    e.preventDefault();
-    const isKiller = role==='killer';
-    const fd = new FormData(e.target);
-    const player = (fd.get('player')||'').trim();
-    const roleVal = (fd.get('role')||'').trim();
-    if(!player) return;
-    if(isKiller && !roleVal) return;
-    ensurePlayer(player);
-    const perks = getPerkSelection(role).slice();
-    const resultRaw = fd.get('result');
-    const result = (resultRaw==='win'||resultRaw==='draw'||resultRaw==='lose') ? resultRaw : 'lose';
-    const participants = fd.getAll('participants').map(v=>v.trim()).filter(Boolean);
-    const record = {
-      player, result,
-      date: fd.get('date') || new Date().toISOString().slice(0,10),
-      perks,
-      participants,
-    };
-    if(isKiller){
-      record.killer = roleVal;
-      record.kills = Math.max(0, Math.min(4, parseInt(fd.get('kills'),10) || 0));
-    }
-
-    const list = isKiller ? store.killerMatches : store.survivorMatches;
-    const editingId = isKiller ? ui.editingKillerId : ui.editingSurvId;
-    if(editingId){
-      const idx = list.findIndex(m=>m.id===editingId);
-      if(idx>=0) list[idx] = {...list[idx], ...record};
-      if(isKiller) ui.editingKillerId=null; else ui.editingSurvId=null;
-    } else {
-      record.id = uid();
-      list.push(record);
-    }
-    ui.perkSelections[role] = [];
-    ui.perkSearches[role] = '';
-    await saveStore();
-    render();
-  }
-
-  async function onDeleteMatch(key){
-    const [role,id] = key.split(':');
-    if(!confirm('이 기록을 삭제할까요?')) return;
-    if(role==='killer') store.killerMatches = store.killerMatches.filter(m=>m.id!==id);
-    else store.survivorMatches = store.survivorMatches.filter(m=>m.id!==id);
-    await saveStore();
-    render();
-  }
-
-  async function onUnlock(){
-    if(SHARED_MODE==='github'){
-      const savedToken = localStorage.getItem(lsKey(GH_TOKEN_KEY, false));
-      if(savedToken){
-        ui.isAdmin = true;
-        await setPersonal(IS_ADMIN_KEY, 'true');
-        ui.tab = 'ranking';
-        render();
-        return;
-      }
-      const token = prompt('GitHub Personal Access Token을 입력하세요.\n(jambi-ws/jambi-dbd 저장소의 Contents 쓰기 권한이 있는 fine-grained 토큰)');
-      if(!token) return;
-      let ok = false;
-      try{ ok = await verifyGithubToken(token); }catch(e){ console.error(e); ok = false; }
-      if(!ok){ alert('토큰이 올바르지 않거나 저장소 접근 권한이 없습니다.'); return; }
-      localStorage.setItem(lsKey(GH_TOKEN_KEY, false), token);
-      ui.isAdmin = true;
-      await setPersonal(IS_ADMIN_KEY, 'true');
-      ui.tab = 'ranking';
-      render();
-      return;
-    }
-    // Claude artifact fallback: simple password gate
-    if(!store.adminHash){
-      const pw1 = prompt('아직 관리자 비밀번호가 설정되지 않았습니다.\\n새로 사용할 관리자 비밀번호를 입력하세요.');
-      if(!pw1) return;
-      store.adminHash = btoa(unescape(encodeURIComponent(pw1)));
-      await saveStore();
-      ui.isAdmin = true;
-      await setPersonal(IS_ADMIN_KEY, 'true');
-      ui.tab = 'ranking';
-      render();
-      return;
-    }
-    const pw = prompt('관리자 비밀번호를 입력하세요.');
-    if(pw===null) return;
-    if(btoa(unescape(encodeURIComponent(pw))) === store.adminHash){
-      ui.isAdmin = true;
-      await setPersonal(IS_ADMIN_KEY, 'true');
-      render();
-    } else {
-      alert('비밀번호가 올바르지 않습니다.');
-    }
-  }
-  async function onLock(){
-    ui.isAdmin = false;
-    ui.tab = 'ranking';
-    ui.viewingPlayer = null;
-    await setPersonal(IS_ADMIN_KEY, 'false');
-    render();
-  }
-
-  async function init(){
-    const loadResult = await loadStore();
-    store = loadResult.store;
-    if(!loadResult.loadedOk){
-      // Could not confirm the real remote state after retries — render with what we have,
-      // but do NOT seed/auto-save here, to avoid overwriting existing remote data.
-      showToast('저장된 기록을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.', true);
-      const savedAdmin = await getPersonal(IS_ADMIN_KEY);
-      ui.isAdmin = savedAdmin === 'true';
-      ui.tab = 'ranking';
-      render();
-      return;
-    }
-    let needsSave = false;
-    if(!store.killersSeeded){
-      const have = new Set(store.killers.map(k=>normSearch(k.name)));
-      KILLER_SEED.forEach(name=>{ if(!have.has(normSearch(name))){ store.killers.push({id:uid(), name, avatar:null}); have.add(normSearch(name)); } });
-      store.killersSeeded = true;
-      needsSave = true;
-    }
-    if(!store.perksSeeded){
-      const haveK = new Set(store.killerPerks.map(p=>normSearch(p.name)));
-      PERK_SEED.forEach(name=>{ if(!haveK.has(normSearch(name))){ store.killerPerks.push({id:uid(), name, avatar:null}); haveK.add(normSearch(name)); } });
-      const haveS = new Set(store.survivorPerks.map(p=>normSearch(p.name)));
-      PERK_SEED.forEach(name=>{ if(!haveS.has(normSearch(name))){ store.survivorPerks.push({id:uid(), name, avatar:null}); haveS.add(normSearch(name)); } });
-      store.perksSeeded = true;
-      needsSave = true;
-    }
-    if(!store.tierRowsSeeded){
-      store.tierRows = [
-        { id: uid(), label:'S', color:'#ff5c5c' },
-        { id: uid(), label:'A', color:'#ff9d4d' },
-        { id: uid(), label:'B', color:'#ffe45c' },
-        { id: uid(), label:'C', color:'#8be24d' },
-        { id: uid(), label:'D', color:'#4dc3ff' },
-        { id: uid(), label:'F', color:'#9d7cff' },
-      ];
-      store.tierRowsSeeded = true;
-      needsSave = true;
-    }
-    if(needsSave) await saveStore();
-    const savedAdmin = await getPersonal(IS_ADMIN_KEY);
-    ui.isAdmin = savedAdmin === 'true';
-    ui.tab = 'ranking';
-    render();
-  }
-
-  init();
-})();
-</script>
+import discord
+from discord.ext import commands, tasks
+from dotenv import load_dotenv
+import os
+import sqlite3
+import time
+import datetime
+import traceback
+
+# ---------- 버전 정보 ----------
+BOT_VERSION = "1.5.0"
+
+# ---------- 기본 설정 ----------
+dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(dotenv_path)
+TOKEN = os.getenv("DISCORD_TOKEN")
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.voice_states = True
+intents.members = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# ---------- 데이터베이스 ----------
+conn = sqlite3.connect("points.db")
+cur = conn.cursor()
+cur.execute("""CREATE TABLE IF NOT EXISTS points (
+    user_id INTEGER PRIMARY KEY, points INTEGER DEFAULT 0)""")
+
+cur.execute("PRAGMA table_info(bets)")
+existing_columns = [row[1] for row in cur.fetchall()]
+
+if not existing_columns:
+    cur.execute("""CREATE TABLE bets (
+        bet_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        option_a TEXT,
+        option_b TEXT,
+        status TEXT DEFAULT 'open',
+        channel_id INTEGER,
+        message_id INTEGER,
+        created_at INTEGER,
+        creator_id INTEGER,
+        duration_seconds INTEGER DEFAULT 180)""")
+else:
+    if "option_a" not in existing_columns:
+        cur.execute("ALTER TABLE bets ADD COLUMN option_a TEXT DEFAULT '성공'")
+    if "option_b" not in existing_columns:
+        cur.execute("ALTER TABLE bets ADD COLUMN option_b TEXT DEFAULT '실패'")
+    if "created_at" not in existing_columns:
+        cur.execute("ALTER TABLE bets ADD COLUMN created_at INTEGER DEFAULT 0")
+    if "creator_id" not in existing_columns:
+        cur.execute("ALTER TABLE bets ADD COLUMN creator_id INTEGER DEFAULT 0")
+    if "duration_seconds" not in existing_columns:
+        cur.execute("ALTER TABLE bets ADD COLUMN duration_seconds INTEGER DEFAULT 180")
+
+cur.execute("""CREATE TABLE IF NOT EXISTS wagers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bet_id INTEGER,
+    user_id INTEGER,
+    choice TEXT,
+    amount INTEGER)""")
+
+cur.execute("""CREATE TABLE IF NOT EXISTS temp_changes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    change_type TEXT,
+    guild_id INTEGER,
+    target_user_id INTEGER,
+    original_name TEXT,
+    original_icon BLOB,
+    original_nick TEXT,
+    had_nick INTEGER,
+    expires_at INTEGER)""")
+conn.commit()
+
+DURATION_OPTIONS = [
+    ("15초", 15),
+    ("30초", 30),
+    ("1분", 60),
+    ("3분", 180),
+]
+
+# ---------- 만두집 상점 설정 ----------
+TEXT_HIGHLIGHT_COST = 100
+SERVER_DECOR_COST = 10000
+NICKNAME_CHANGE_COST = 4000
+TEMP_CHANGE_DURATION = 86400  # 24시간
+SHOP_MENU_TIMEOUT = 120  # 2분
+
+# ---------- 음성 채널 인원수 보너스 설정 ----------
+def get_headcount_bonus(headcount):
+    if headcount >= 10:
+        return 20
+    elif headcount >= 6:
+        return 15
+    elif headcount >= 4:
+        return 10
+    elif headcount >= 3:
+        return 5
+    else:
+        return 0
+
+def get_points(user_id):
+    cur.execute("SELECT points FROM points WHERE user_id=?", (user_id,))
+    row = cur.fetchone()
+    if row is None:
+        cur.execute("INSERT INTO points (user_id, points) VALUES (?, 0)", (user_id,))
+        conn.commit()
+        return 0
+    return row[0]
+
+def add_points(user_id, amount):
+    get_points(user_id)
+    cur.execute("UPDATE points SET points = points + ? WHERE user_id=?", (amount, user_id))
+    conn.commit()
+
+def get_rank(user_id):
+    cur.execute("SELECT user_id FROM points ORDER BY points DESC")
+    rows = cur.fetchall()
+    for i, (uid,) in enumerate(rows, start=1):
+        if uid == user_id:
+            return i, len(rows)
+    return None, len(rows)
+
+# ---------- 버전 확인 ----------
+@bot.command(name="버전확인")
+async def 버전확인(ctx):
+    await ctx.send(f"🤖 현재 봇 버전: **v{BOT_VERSION}**")
+
+# ---------- 음성 채널 만두 지급 ----------
+voice_tracker = {}
+
+@tasks.loop(seconds=60)
+async def voice_point_task():
+    for guild in bot.guilds:
+        for vc in guild.voice_channels:
+            human_members = [m for m in vc.members if not m.bot]
+            headcount = len(human_members)
+            bonus = get_headcount_bonus(headcount)
+
+            for member in human_members:
+                uid = member.id
+                voice_tracker[uid] = voice_tracker.get(uid, 0) + 60
+                elapsed = voice_tracker[uid]
+
+                if elapsed % 600 == 0:
+                    add_points(uid, 20 + bonus)
+                if elapsed % 3600 == 0:
+                    add_points(uid, 10)
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if member.bot:
+        return
+    if after.channel is None:
+        voice_tracker.pop(member.id, None)
+
+# ---------- 만두 확인 / 전체 (슬래시 명령어) ----------
+@bot.tree.command(name="만두확인", description="내 만두 개수와 순위를 확인합니다 (나만 볼 수 있음)")
+async def 만두확인(interaction: discord.Interaction):
+    pts = get_points(interaction.user.id)
+    rank, total = get_rank(interaction.user.id)
+    msg = f"🥟 {interaction.user.mention}님의 만두: **{pts}개**\n순위: **{rank}위** / 총 {total}명"
+    await interaction.response.send_message(msg, ephemeral=True)
+
+@bot.tree.command(name="만두전체", description="만두 상위 10명을 확인합니다 (나만 볼 수 있음)")
+async def 만두전체(interaction: discord.Interaction):
+    cur.execute("SELECT user_id, points FROM points ORDER BY points DESC LIMIT 10")
+    rows = cur.fetchall()
+    if not rows:
+        await interaction.response.send_message("아직 기록된 만두가 없습니다.", ephemeral=True)
+        return
+    lines = []
+    for i, (uid, pts) in enumerate(rows, start=1):
+        member = interaction.guild.get_member(uid)
+        name = member.display_name if member else f"알 수 없음({uid})"
+        lines.append(f"{i}. {name} - {pts}개")
+    embed = discord.Embed(title="🥟 만두 상위 10위", description="\n".join(lines), color=discord.Color.gold())
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ---------- 만두 지급 (! 명령어, 관리자 전용) ----------
+@bot.group(invoke_without_command=True)
+async def 만두(ctx):
+    await ctx.send("사용법: `!만두 지급 @사용자 개수` (관리자 전용)")
+
+@만두.command(name="지급")
+@commands.has_permissions(administrator=True)
+async def 만두_지급(ctx, 대상: discord.Member, 개수: int):
+    add_points(대상.id, 개수)
+    new_total = get_points(대상.id)
+    await ctx.send(f"{대상.mention}님에게 만두 **{개수}개**를 지급했습니다. (현재 보유: {new_total}개) 🥟")
+
+@만두_지급.error
+async def 만두_지급_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("이 명령어는 관리자만 사용할 수 있습니다.")
+    elif isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument)):
+        await ctx.send("사용법: `!만두 지급 @사용자 개수` (예: `!만두 지급 @홍길동 50`)")
+
+# ================= 만두집 상점 =================
+
+def schedule_temp_change_revert(change_id, expires_at):
+    async def revert_task():
+        delay = expires_at - int(time.time())
+        if delay > 0:
+            await discord.utils.sleep_until(discord.utils.utcnow() + datetime.timedelta(seconds=delay))
+        await apply_revert(change_id)
+    bot.loop.create_task(revert_task())
+
+async def apply_revert(change_id):
+    cur.execute("SELECT change_type, guild_id, target_user_id, original_name, original_icon, original_nick, had_nick FROM temp_changes WHERE id=?", (change_id,))
+    row = cur.fetchone()
+    if not row:
+        return
+    change_type, guild_id, target_user_id, original_name, original_icon, original_nick, had_nick = row
+
+    guild = bot.get_guild(guild_id)
+    if guild is None:
+        cur.execute("DELETE FROM temp_changes WHERE id=?", (change_id,))
+        conn.commit()
+        return
+
+    try:
+        if change_type == "server":
+            await guild.edit(name=original_name, icon=original_icon, reason="만두집: 서버 프로필 꾸미기 기간 만료 - 원상복구")
+        elif change_type == "nickname":
+            member = guild.get_member(target_user_id)
+            if member:
+                restore_nick = original_nick if had_nick else None
+                await member.edit(nick=restore_nick, reason="만두집: 닉네임 교체권 기간 만료 - 원상복구")
+    except discord.HTTPException as e:
+        print(f"[만두집 복구 실패] change_id={change_id}, error={e}")
+
+    cur.execute("DELETE FROM temp_changes WHERE id=?", (change_id,))
+    conn.commit()
+
+def restore_pending_temp_changes():
+    cur.execute("SELECT id, expires_at FROM temp_changes")
+    rows = cur.fetchall()
+    now = int(time.time())
+    for change_id, expires_at in rows:
+        if expires_at <= now:
+            bot.loop.create_task(apply_revert(change_id))
+        else:
+            schedule_temp_change_revert(change_id, expires_at)
+
+# ---------- /만두집 메인 메뉴 ----------
+class ShopMainView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=SHOP_MENU_TIMEOUT)
+        self.message = None
+
+    async def close_menu(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+        self.stop()
+
+    async def on_timeout(self):
+        await self.close_menu()
+
+    @discord.ui.button(label=f"✨ 텍스트 강조 ({TEXT_HIGHLIGHT_COST}개)", style=discord.ButtonStyle.blurple)
+    async def highlight_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pts = get_points(interaction.user.id)
+        if pts < TEXT_HIGHLIGHT_COST:
+            await interaction.response.send_message(f"만두가 부족합니다. (필요: {TEXT_HIGHLIGHT_COST}개 / 보유: {pts}개)", ephemeral=True)
+            return
+        await interaction.response.send_modal(HighlightModal())
+        await self.close_menu()
+
+    @discord.ui.button(label=f"🖼️ 서버 프로필 꾸미기 ({SERVER_DECOR_COST}개)", style=discord.ButtonStyle.blurple)
+    async def server_decor_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pts = get_points(interaction.user.id)
+        if pts < SERVER_DECOR_COST:
+            await interaction.response.send_message(f"만두가 부족합니다. (필요: {SERVER_DECOR_COST}개 / 보유: {pts}개)", ephemeral=True)
+            return
+        if not interaction.guild.me.guild_permissions.manage_guild:
+            await interaction.response.send_message("⚠️ 봇에게 '서버 관리' 권한이 없어서 사용할 수 없습니다. 관리자에게 문의해주세요.", ephemeral=True)
+            return
+        await interaction.response.send_modal(ServerDecorModal())
+        await self.close_menu()
+
+    @discord.ui.button(label=f"🏷️ 타인 닉네임 1일 교체권 ({NICKNAME_CHANGE_COST}개)", style=discord.ButtonStyle.blurple)
+    async def nickname_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pts = get_points(interaction.user.id)
+        if pts < NICKNAME_CHANGE_COST:
+            await interaction.response.send_message(f"만두가 부족합니다. (필요: {NICKNAME_CHANGE_COST}개 / 보유: {pts}개)", ephemeral=True)
+            return
+        if not interaction.guild.me.guild_permissions.manage_nicknames:
+            await interaction.response.send_message("⚠️ 봇에게 '닉네임 관리' 권한이 없어서 사용할 수 없습니다. 관리자에게 문의해주세요.", ephemeral=True)
+            return
+        await interaction.response.send_message(
+            "닉네임을 바꿀 대상을 아래 목록에서 선택해주세요:",
+            view=NicknameTargetSelectView(),
+            ephemeral=True
+        )
+        await self.close_menu()
+
+@bot.tree.command(name="만두집", description="만두로 할 수 있는 것들을 확인합니다 (나만 볼 수 있음)")
+async def 만두집(interaction: discord.Interaction):
+    pts = get_points(interaction.user.id)
+    embed = discord.Embed(
+        title="🥟 만두집 상점",
+        description=f"현재 보유 만두: **{pts}개**\n\n아래 버튼을 눌러 만두를 사용해보세요! (2분간 미사용 시 자동 종료)",
+        color=discord.Color.orange()
+    )
+    embed.add_field(name="✨ 텍스트 강조", value=f"{TEXT_HIGHLIGHT_COST}개 · 원하는 문구를 화려하게 강조해서 채팅에 게시", inline=False)
+    embed.add_field(name="🖼️ 서버 프로필 꾸미기", value=f"{SERVER_DECOR_COST}개 · 24시간 동안 서버 이름/아이콘 변경 (이후 자동 복구)", inline=False)
+    embed.add_field(name="🏷️ 타인 닉네임 1일 교체권", value=f"{NICKNAME_CHANGE_COST}개 · 상대 닉네임을 24시간 동안 변경 (이후 자동 복구)", inline=False)
+
+    view = ShopMainView()
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    view.message = await interaction.original_response()
+
+# ---------- 1. 텍스트 강조 ----------
+class HighlightModal(discord.ui.Modal, title="✨ 텍스트 강조"):
+    text_input = discord.ui.TextInput(
+        label="강조하고 싶은 문구를 입력하세요",
+        placeholder="예: 오늘 방송 대박!",
+        max_length=100,
+        style=discord.TextStyle.paragraph
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        pts = get_points(interaction.user.id)
+        if pts < TEXT_HIGHLIGHT_COST:
+            await interaction.response.send_message(f"만두가 부족합니다. (필요: {TEXT_HIGHLIGHT_COST}개 / 보유: {pts}개)", ephemeral=True)
+            return
+
+        add_points(interaction.user.id, -TEXT_HIGHLIGHT_COST)
+
+        text = self.text_input.value
+        embed = discord.Embed(
+            description=f"# 🌟 {text} 🌟",
+            color=discord.Color.gold()
+        )
+        embed.set_author(name=f"{interaction.user.display_name}님의 강조 메시지", icon_url=interaction.user.display_avatar.url)
+        embed.set_footer(text="✨ 만두 " + str(TEXT_HIGHLIGHT_COST) + "개로 강조된 메시지입니다 ✨")
+
+        await interaction.response.send_message("강조 메시지를 게시했습니다! 🎉", ephemeral=True)
+        await interaction.channel.send(content="🎉🎊✨━━━━━━━━━━━━━━━━━━━✨🎊🎉", embed=embed)
+
+# ---------- 2. 서버 프로필 꾸미기 ----------
+class ServerDecorModal(discord.ui.Modal, title="🖼️ 서버 프로필 꾸미기"):
+    new_name = discord.ui.TextInput(
+        label="새 서버 이름",
+        placeholder="예: 오늘은 만두데이",
+        max_length=100
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            f"좋습니다! 이제 **이 채널에 아이콘으로 쓸 이미지 파일을 첨부**해서 아무 메시지나 보내주세요. (2분 이내, 이미지 하나만)",
+            ephemeral=True
+        )
+
+        def check(m):
+            return m.author.id == interaction.user.id and m.channel.id == interaction.channel_id and len(m.attachments) > 0
+
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=120)
+        except Exception:
+            await interaction.followup.send("⏰ 시간이 초과되어 취소되었습니다. 만두는 차감되지 않았습니다.", ephemeral=True)
+            return
+
+        attachment = msg.attachments[0]
+        if not attachment.content_type or "image" not in attachment.content_type:
+            await interaction.followup.send("이미지 파일이 아닙니다. 처음부터 다시 시도해주세요. 만두는 차감되지 않았습니다.", ephemeral=True)
+            return
+
+        pts = get_points(interaction.user.id)
+        if pts < SERVER_DECOR_COST:
+            await interaction.followup.send(f"만두가 부족합니다. (필요: {SERVER_DECOR_COST}개 / 보유: {pts}개)", ephemeral=True)
+            return
+
+        guild = interaction.guild
+        try:
+            original_icon_bytes = await guild.icon.read() if guild.icon else None
+        except Exception:
+            original_icon_bytes = None
+        original_name = guild.name
+
+        new_icon_bytes = await attachment.read()
+
+        try:
+            await guild.edit(name=self.new_name.value, icon=new_icon_bytes, reason=f"{interaction.user}님이 만두집 - 서버 프로필 꾸미기 사용")
+        except discord.HTTPException as e:
+            await interaction.followup.send(f"⚠️ 서버 프로필 변경에 실패했습니다: {e}", ephemeral=True)
+            return
+
+        add_points(interaction.user.id, -SERVER_DECOR_COST)
+        expires_at = int(time.time()) + TEMP_CHANGE_DURATION
+
+        cur.execute(
+            "INSERT INTO temp_changes (change_type, guild_id, target_user_id, original_name, original_icon, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("server", guild.id, None, original_name, original_icon_bytes, expires_at)
+        )
+        conn.commit()
+        change_id = cur.lastrowid
+        schedule_temp_change_revert(change_id, expires_at)
+
+        try:
+            await msg.delete()
+        except discord.HTTPException:
+            pass
+
+        await interaction.followup.send(
+            f"✅ 서버 프로필이 변경되었습니다! 24시간 후 자동으로 원래대로 복구됩니다.",
+            ephemeral=True
+        )
+        await interaction.channel.send(f"🖼️ {interaction.user.mention}님이 만두 {SERVER_DECOR_COST}개로 서버 프로필을 하루 동안 꾸몄습니다!")
+
+# ---------- 3. 타인 닉네임 1일 교체권 (유저 선택 드롭다운 방식) ----------
+class NicknameTargetSelectView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=SHOP_MENU_TIMEOUT)
+        self.message = None
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+
+    @discord.ui.select(cls=discord.ui.UserSelect, placeholder="닉네임을 바꿀 대상을 선택하세요", min_values=1, max_values=1)
+    async def select_target(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
+        target = select.values[0]
+
+        if target.bot:
+            await interaction.response.send_message("봇의 닉네임은 변경할 수 없습니다.", ephemeral=True)
+            return
+
+        if target.id == interaction.guild.owner_id:
+            await interaction.response.send_message("서버 소유자의 닉네임은 변경할 수 없습니다.", ephemeral=True)
+            return
+
+        member = interaction.guild.get_member(target.id)
+        if member is None:
+            await interaction.response.send_message("해당 사용자를 서버에서 찾을 수 없습니다.", ephemeral=True)
+            return
+
+        if member.top_role >= interaction.guild.me.top_role:
+            await interaction.response.send_message("봇보다 역할이 높거나 같은 사용자의 닉네임은 변경할 수 없습니다.", ephemeral=True)
+            return
+
+        await interaction.response.send_modal(NicknameChangeModal(member))
+
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+        self.stop()
+
+class NicknameChangeModal(discord.ui.Modal, title="🏷️ 새 닉네임 입력"):
+    new_nick_input = discord.ui.TextInput(
+        label="바꿀 닉네임",
+        placeholder="예: 오늘의 주인공",
+        max_length=32
+    )
+
+    def __init__(self, target_member: discord.Member):
+        super().__init__()
+        self.target_member = target_member
+
+    async def on_submit(self, interaction: discord.Interaction):
+        pts = get_points(interaction.user.id)
+        if pts < NICKNAME_CHANGE_COST:
+            await interaction.response.send_message(f"만두가 부족합니다. (필요: {NICKNAME_CHANGE_COST}개 / 보유: {pts}개)", ephemeral=True)
+            return
+
+        target = self.target_member
+        original_nick = target.nick
+        had_nick = 1 if original_nick is not None else 0
+
+        try:
+            await target.edit(nick=self.new_nick_input.value, reason=f"{interaction.user}님이 만두집 - 닉네임 교체권 사용")
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"⚠️ 닉네임 변경에 실패했습니다: {e}", ephemeral=True)
+            return
+
+        add_points(interaction.user.id, -NICKNAME_CHANGE_COST)
+        expires_at = int(time.time()) + TEMP_CHANGE_DURATION
+
+        cur.execute(
+            "INSERT INTO temp_changes (change_type, guild_id, target_user_id, original_nick, had_nick, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("nickname", interaction.guild.id, target.id, original_nick, had_nick, expires_at)
+        )
+        conn.commit()
+        change_id = cur.lastrowid
+        schedule_temp_change_revert(change_id, expires_at)
+
+        await interaction.response.send_message(
+            f"✅ {target.mention}님의 닉네임을 **'{self.new_nick_input.value}'**(으)로 변경했습니다! 24시간 후 자동으로 원래대로 복구됩니다.",
+            ephemeral=True
+        )
+        await interaction.channel.send(f"🏷️ {interaction.user.mention}님이 만두 {NICKNAME_CHANGE_COST}개로 {target.mention}님의 닉네임을 하루 동안 바꿨습니다!")
+
+# ================= 승부예측 시스템 =================
+async def get_bet_stats(bet_id):
+    cur.execute("SELECT choice, COUNT(*), SUM(amount) FROM wagers WHERE bet_id=? GROUP BY choice", (bet_id,))
+    stats = {"a": {"count": 0, "total": 0}, "b": {"count": 0, "total": 0}}
+    for choice, count, total in cur.fetchall():
+        stats[choice] = {"count": count, "total": total or 0}
+    return stats
+
+def build_bet_embed(title, option_a, option_b, stats, status, created_at, duration_seconds):
+    embed = discord.Embed(title=f"🔮 승부예측: {title}", color=discord.Color.blurple())
+    embed.add_field(
+        name=f"✅ {option_a}",
+        value=f"{stats['a']['count']}명 참여 / 총 {stats['a']['total']}개",
+        inline=True
+    )
+    embed.add_field(
+        name=f"❌ {option_b}",
+        value=f"{stats['b']['count']}명 참여 / 총 {stats['b']['total']}개",
+        inline=True
+    )
+    if status == "open":
+        remaining = duration_seconds - (int(time.time()) - created_at)
+        if remaining > 0:
+            embed.set_footer(text=f"상태: 진행중 (배팅 마감까지 약 {remaining // 60}분 {remaining % 60}초) · 같은 옵션에는 추가 배팅 가능")
+        else:
+            embed.set_footer(text="상태: 배팅 마감됨 · 결과 발표 대기중")
+    elif status == "cancelled":
+        embed.set_footer(text="상태: 취소됨 (전액 환불)")
+    else:
+        winner_name = option_a if status == "a" else option_b
+        embed.set_footer(text=f"상태: 종료 (승리: {winner_name})")
+    return embed
+
+async def refresh_bet_message(bet_id, view=None):
+    cur.execute("SELECT title, option_a, option_b, status, channel_id, message_id, created_at, duration_seconds FROM bets WHERE bet_id=?", (bet_id,))
+    row = cur.fetchone()
+    if not row:
+        return
+    title, option_a, option_b, status, channel_id, message_id, created_at, duration_seconds = row
+    stats = await get_bet_stats(bet_id)
+    embed = build_bet_embed(title, option_a, option_b, stats, status, created_at, duration_seconds)
+
+    channel = bot.get_channel(channel_id)
+    if channel and message_id:
+        try:
+            msg = await channel.fetch_message(message_id)
+            await msg.edit(embed=embed, view=view)
+        except discord.NotFound:
+            pass
+
+class BetModal(discord.ui.Modal):
+    def __init__(self, bet_id, choice, option_a_label, option_b_label, current_points, extra_mode=False):
+        label = option_a_label if choice == "a" else option_b_label
+        title_text = f"'{label}'에 추가 배팅하기" if extra_mode else f"'{label}'에 배팅하기"
+        super().__init__(title=title_text)
+        self.bet_id = bet_id
+        self.choice = choice
+        self.option_a_label = option_a_label
+        self.option_b_label = option_b_label
+        self.amount_input = discord.ui.TextInput(
+            label=f"배팅할 만두 수 (보유 {current_points}개)",
+            placeholder=f"현재 보유: {current_points}개 · 숫자만 입력",
+            max_length=10
+        )
+        self.add_item(self.amount_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        cur.execute("SELECT status, created_at, duration_seconds FROM bets WHERE bet_id=?", (self.bet_id,))
+        row = cur.fetchone()
+        if not row or row[0] != "open":
+            await interaction.response.send_message("이 승부예측은 더 이상 참여할 수 없습니다.", ephemeral=True)
+            return
+        status, created_at, duration_seconds = row
+        if int(time.time()) - created_at > duration_seconds:
+            await interaction.response.send_message("배팅 가능 시간이 지났습니다.", ephemeral=True)
+            return
+
+        try:
+            amount = int(self.amount_input.value)
+        except ValueError:
+            await interaction.response.send_message("숫자만 입력해주세요.", ephemeral=True)
+            return
+        if amount <= 0:
+            await interaction.response.send_message("1 이상의 값을 입력해주세요.", ephemeral=True)
+            return
+
+        user_points = get_points(interaction.user.id)
+        if amount > user_points:
+            await interaction.response.send_message(f"만두가 부족합니다. (보유: {user_points}개)", ephemeral=True)
+            return
+
+        cur.execute("SELECT choice, amount FROM wagers WHERE bet_id=? AND user_id=?", (self.bet_id, interaction.user.id))
+        existing = cur.fetchone()
+
+        if existing:
+            existing_choice, existing_amount = existing
+            if existing_choice != self.choice:
+                existing_label = self.option_a_label if existing_choice == "a" else self.option_b_label
+                await interaction.response.send_message(
+                    f"이미 **'{existing_label}'**에 배팅하셨습니다. 반대쪽에는 배팅할 수 없습니다. (같은 쪽에는 추가 배팅 가능)",
+                    ephemeral=True
+                )
+                return
+            add_points(interaction.user.id, -amount)
+            cur.execute("UPDATE wagers SET amount = amount + ? WHERE bet_id=? AND user_id=?", (amount, self.bet_id, interaction.user.id))
+            conn.commit()
+            new_total = existing_amount + amount
+            await interaction.response.send_message(f"만두 {amount}개를 추가로 배팅했습니다! (이 승부예측 총 배팅: {new_total}개)", ephemeral=True)
+        else:
+            add_points(interaction.user.id, -amount)
+            cur.execute("INSERT INTO wagers (bet_id, user_id, choice, amount) VALUES (?, ?, ?, ?)",
+                        (self.bet_id, interaction.user.id, self.choice, amount))
+            conn.commit()
+            await interaction.response.send_message(f"만두 {amount}개를 배팅했습니다!", ephemeral=True)
+
+        await refresh_bet_message(self.bet_id, view=BetView(self.bet_id, self.option_a_label, self.option_b_label))
+
+class BetView(discord.ui.View):
+    def __init__(self, bet_id, option_a, option_b):
+        super().__init__(timeout=None)
+        self.bet_id = bet_id
+
+        btn_a = discord.ui.Button(label=option_a, style=discord.ButtonStyle.green, custom_id=f"pred_a_{bet_id}")
+        btn_b = discord.ui.Button(label=option_b, style=discord.ButtonStyle.red, custom_id=f"pred_b_{bet_id}")
+
+        async def on_a(interaction: discord.Interaction):
+            current_points = get_points(interaction.user.id)
+            cur.execute("SELECT choice FROM wagers WHERE bet_id=? AND user_id=?", (bet_id, interaction.user.id))
+            existing = cur.fetchone()
+            extra_mode = bool(existing and existing[0] == "a")
+            if existing and existing[0] == "b":
+                await interaction.response.send_message(f"이미 **'{option_b}'**에 배팅하셨습니다. 반대쪽에는 배팅할 수 없습니다.", ephemeral=True)
+                return
+            modal = BetModal(bet_id, "a", option_a, option_b, current_points, extra_mode=extra_mode)
+            await interaction.response.send_modal(modal)
+
+        async def on_b(interaction: discord.Interaction):
+            current_points = get_points(interaction.user.id)
+            cur.execute("SELECT choice FROM wagers WHERE bet_id=? AND user_id=?", (bet_id, interaction.user.id))
+            existing = cur.fetchone()
+            extra_mode = bool(existing and existing[0] == "b")
+            if existing and existing[0] == "a":
+                await interaction.response.send_message(f"이미 **'{option_a}'**에 배팅하셨습니다. 반대쪽에는 배팅할 수 없습니다.", ephemeral=True)
+                return
+            modal = BetModal(bet_id, "b", option_a, option_b, current_points, extra_mode=extra_mode)
+            await interaction.response.send_modal(modal)
+
+        btn_a.callback = on_a
+        btn_b.callback = on_b
+        self.add_item(btn_a)
+        self.add_item(btn_b)
+
+async def close_betting_after_delay(bet_id, duration_seconds):
+    await discord.utils.sleep_until(discord.utils.utcnow() + datetime.timedelta(seconds=duration_seconds))
+    cur.execute("SELECT status FROM bets WHERE bet_id=?", (bet_id,))
+    row = cur.fetchone()
+    if row and row[0] == "open":
+        await refresh_bet_message(bet_id, view=None)
+
+class DurationSelectView(discord.ui.View):
+    def __init__(self, creator_id, channel_id, title, option_a, option_b):
+        super().__init__(timeout=60)
+        self.creator_id = creator_id
+        self.channel_id = channel_id
+        self.title_text = title
+        self.option_a = option_a
+        self.option_b = option_b
+
+        for label, seconds in DURATION_OPTIONS:
+            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.blurple)
+
+            async def callback(interaction: discord.Interaction, seconds=seconds, label=label):
+                if interaction.user.id != self.creator_id:
+                    await interaction.response.send_message("이 승부예측을 만든 본인만 제한시간을 선택할 수 있습니다.", ephemeral=True)
+                    return
+
+                cur.execute("SELECT bet_id FROM bets WHERE status='open'")
+                if cur.fetchone():
+                    await interaction.response.send_message("이미 다른 승부예측이 먼저 시작되었습니다. 이 예측은 생성되지 않습니다.", ephemeral=True)
+                    self.stop()
+                    return
+
+                created_at = int(time.time())
+                cur.execute(
+                    "INSERT INTO bets (title, option_a, option_b, status, channel_id, created_at, creator_id, duration_seconds) VALUES (?, ?, ?, 'open', ?, ?, ?, ?)",
+                    (self.title_text, self.option_a, self.option_b, self.channel_id, created_at, self.creator_id, seconds)
+                )
+                conn.commit()
+                bet_id = cur.lastrowid
+
+                stats = {"a": {"count": 0, "total": 0}, "b": {"count": 0, "total": 0}}
+                embed = build_bet_embed(self.title_text, self.option_a, self.option_b, stats, "open", created_at, seconds)
+                bet_view = BetView(bet_id, self.option_a, self.option_b)
+
+                await interaction.response.edit_message(
+                    content=f"✅ 제한시간 **{label}**으로 승부예측이 생성되었습니다!",
+                    embed=None, view=None
+                )
+                channel = bot.get_channel(self.channel_id)
+                msg = await channel.send(embed=embed, view=bet_view)
+                cur.execute("UPDATE bets SET message_id=? WHERE bet_id=?", (msg.id, bet_id))
+                conn.commit()
+
+                bot.loop.create_task(close_betting_after_delay(bet_id, seconds))
+                self.stop()
+
+            btn.callback = callback
+            self.add_item(btn)
+
+@bot.group(invoke_without_command=True)
+async def 승부예측(ctx):
+    await ctx.send(
+        '사용법:\n'
+        '`!승부예측 생성 "제목" "성공옵션" "실패옵션"` (제한시간은 이후 버튼으로 선택)\n'
+        '`!승부예측 종료 결과` (생성한 본인만 가능)\n'
+        '`!승부예측 전체종료` (관리자 전용, 누가 만들었든 취소 가능)\n'
+        '`!승부예측 상태` (디버깅용: 현재 상태 확인)'
+    )
+
+@승부예측.command(name="상태")
+async def 승부예측_상태(ctx):
+    cur.execute("SELECT bet_id, title, option_a, option_b, status, created_at, creator_id, duration_seconds FROM bets ORDER BY bet_id DESC LIMIT 1")
+    row = cur.fetchone()
+    if not row:
+        await ctx.send("아직 생성된 승부예측 기록이 전혀 없습니다.")
+        return
+    bet_id, title, option_a, option_b, status, created_at, creator_id, duration_seconds = row
+    creator = ctx.guild.get_member(creator_id)
+    creator_name = creator.display_name if creator else str(creator_id)
+    await ctx.send(
+        f"가장 최근 승부예측 정보:\n"
+        f"- ID: {bet_id}\n"
+        f"- 제목: {title}\n"
+        f"- 옵션: {option_a} / {option_b}\n"
+        f"- 상태: {status}\n"
+        f"- 생성자: {creator_name}\n"
+        f"- 제한시간: {duration_seconds}초\n"
+        f"- 생성 시각(유닉스): {created_at}"
+    )
+
+@승부예측.command(name="생성")
+async def 승부예측_생성(ctx, 제목: str, 성공옵션: str, 실패옵션: str):
+    try:
+        cur.execute("SELECT bet_id, title, status FROM bets WHERE status='open'")
+        existing = cur.fetchone()
+        if existing:
+            await ctx.send(f"이미 진행 중인 승부예측이 있습니다 (ID: {existing[0]}, 제목: {existing[1]}). 먼저 종료해주세요.")
+            return
+
+        view = DurationSelectView(ctx.author.id, ctx.channel.id, 제목, 성공옵션, 실패옵션)
+        await ctx.send(
+            f"🔮 **{제목}** ('{성공옵션}' vs '{실패옵션}')\n배팅 제한시간을 선택해주세요 (본인만 선택 가능):",
+            view=view
+        )
+    except Exception as e:
+        error_text = traceback.format_exc()
+        print(f"[승부예측 생성 오류]\n{error_text}")
+        await ctx.send(f"⚠️ 승부예측 생성 중 오류가 발생했습니다:\n```{str(e)}```")
+
+@승부예측_생성.error
+async def 승부예측_생성_error(ctx, error):
+    if isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument)):
+        await ctx.send('사용법: `!승부예측 생성 "제목" "성공옵션" "실패옵션"` (띄어쓰기가 있으면 큰따옴표로 감싸주세요)\n예: `!승부예측 생성 테스트 성공 실패`')
+    else:
+        error_text = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        print(f"[승부예측 생성 명령어 오류]\n{error_text}")
+        await ctx.send(f"⚠️ 오류가 발생했습니다:\n```{str(error)}```")
+
+@승부예측.command(name="종료")
+async def 승부예측_종료(ctx, *, 결과: str):
+    cur.execute("SELECT bet_id, title, option_a, option_b, creator_id FROM bets WHERE status='open'")
+    row = cur.fetchone()
+    if not row:
+        await ctx.send("진행 중인 승부예측이 없습니다.")
+        return
+    bet_id, title, option_a, option_b, creator_id = row
+
+    if ctx.author.id != creator_id:
+        creator = ctx.guild.get_member(creator_id)
+        creator_name = creator.display_name if creator else "알 수 없음"
+        await ctx.send(f"이 승부예측은 **{creator_name}**님이 생성한 것이라 본인만 종료할 수 있습니다. (관리자는 `!승부예측 전체종료`로 취소 가능)")
+        return
+
+    if 결과 == option_a:
+        win_choice, lose_choice, win_status = "a", "b", "a"
+    elif 결과 == option_b:
+        win_choice, lose_choice, win_status = "b", "a", "b"
+    else:
+        await ctx.send(f"'{option_a}' 또는 '{option_b}' 중에서 정확히 입력해주세요.")
+        return
+
+    cur.execute("SELECT user_id, amount FROM wagers WHERE bet_id=? AND choice=?", (bet_id, win_choice))
+    winners = cur.fetchall()
+    cur.execute("SELECT user_id, amount FROM wagers WHERE bet_id=? AND choice=?", (bet_id, lose_choice))
+    losers = cur.fetchall()
+
+    total_win_pool = sum(a for _, a in winners)
+    total_lose_pool = sum(a for _, a in losers)
+
+    result_lines = []
+    if total_win_pool == 0:
+        for uid, amt in losers:
+            add_points(uid, amt)
+        result_lines.append("승리 측 참여자가 없어 배팅 만두가 전액 반환되었습니다.")
+    else:
+        for uid, amt in winners:
+            share = int(total_lose_pool * (amt / total_win_pool))
+            payout = amt + share
+            add_points(uid, payout)
+            member = ctx.guild.get_member(uid)
+            name = member.display_name if member else str(uid)
+            result_lines.append(f"{name}: +{payout}개 (원금 {amt} + 배당 {share})")
+
+    cur.execute("UPDATE bets SET status=? WHERE bet_id=?", (win_status, bet_id))
+    conn.commit()
+    await refresh_bet_message(bet_id, view=None)
+
+    result_embed = discord.Embed(title=f"🎉 승부예측 종료: {title}", description=f"결과: **{결과}**", color=discord.Color.green())
+    result_embed.add_field(name="배당 내역", value="\n".join(result_lines) if result_lines else "없음", inline=False)
+    await ctx.send(embed=result_embed)
+
+@승부예측.command(name="전체종료")
+@commands.has_permissions(administrator=True)
+async def 승부예측_전체종료(ctx):
+    cur.execute("SELECT bet_id, title FROM bets WHERE status='open'")
+    row = cur.fetchone()
+    if not row:
+        await ctx.send("진행 중인 승부예측이 없습니다.")
+        return
+    bet_id, title = row
+
+    cur.execute("SELECT user_id, amount FROM wagers WHERE bet_id=?", (bet_id,))
+    all_wagers = cur.fetchall()
+    for uid, amt in all_wagers:
+        add_points(uid, amt)
+
+    cur.execute("UPDATE bets SET status='cancelled' WHERE bet_id=?", (bet_id,))
+    conn.commit()
+    await refresh_bet_message(bet_id, view=None)
+
+    await ctx.send(f"승부예측 '{title}'이(가) 취소되었습니다. 배팅했던 만두는 전액 환불되었습니다.")
+
+@승부예측_전체종료.error
+async def 승부예측_전체종료_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("이 명령어는 관리자만 사용할 수 있습니다.")
+
+# ---------- 봇 시작 ----------
+@bot.event
+async def on_ready():
+    if not voice_point_task.is_running():
+        voice_point_task.start()
+
+    cur.execute("SELECT bet_id, option_a, option_b, status, created_at, duration_seconds FROM bets WHERE status='open'")
+    row = cur.fetchone()
+    if row:
+        bet_id, option_a, option_b, status, created_at, duration_seconds = row
+        remaining = duration_seconds - (int(time.time()) - created_at)
+        if remaining > 0:
+            bot.add_view(BetView(bet_id, option_a, option_b))
+            bot.loop.create_task(close_betting_after_delay(bet_id, duration_seconds))
+
+    restore_pending_temp_changes()
+
+    try:
+        synced = await bot.tree.sync()
+        print(f"슬래시 명령어 {len(synced)}개 동기화 완료")
+    except Exception as e:
+        print(f"슬래시 명령어 동기화 실패: {e}")
+
+    print(f"{bot.user} 봇이 온라인 상태입니다! (버전 v{BOT_VERSION})")
+
+client = bot
+client.run(TOKEN)
